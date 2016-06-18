@@ -40,7 +40,7 @@ function initTransport(settings) {
 
     return transport;
 
-    function send(name, params) {
+    function send(name, route, payload) {
         const client = descriptors.find(d => d.type === 'client' &&
             d.spec.name === name);
 
@@ -48,12 +48,13 @@ function initTransport(settings) {
             throw new Error('Client is not connected to channel');
         }
 
-        console.info('Sending task "%s" to queue "%s"', name, client.spec.produce.queue.name);
+        console.info('Sending task "%s" to queue "%s"', name, client.spec.produce.queue.exchange);
 
-        latestChannel.sendToQueue(
-            client.spec.produce.queue.name,
+        latestChannel.publish(
+            client.spec.produce.queue.exchange,
+            route,
             new Buffer(JSON.stringify({
-                params
+                payload
             }))
         );
     }
@@ -62,7 +63,10 @@ function initTransport(settings) {
         if (state === 'disconnected') {
             state = 'connecting';
             latestConnection = null;
-            return setupChannel(openChannel(setupConnection(connect())));
+            return setupChannel(openChannel(setupConnection(connect())))
+                .catch(err => {
+                    console.err('Error during setup', err);
+                });
         }
 
         console.error('Connection state is "%s", will not setup new connection');
@@ -87,7 +91,7 @@ function initTransport(settings) {
 
                     return assertQueues(channel, queues)
                         .then(() => listenServers(channel))
-                        .then(() => initClients(channel))
+                        // .then(() => initClients(channel))
                         .then(() => latestChannel = channel);
                 }
             });
@@ -114,12 +118,12 @@ function initTransport(settings) {
             });
     }
 
-    function initClients() {
-        const clientDescriptors = descriptors
-            .filter(d => d.type === 'client')
-            .map(d => d.spec);
+    // function initClients() {
+    //     const clientDescriptors = descriptors
+    //         .filter(d => d.type === 'client')
+    //         .map(d => d.spec);
 
-    }
+    // }
 
     function listenServers(channel) {
         const serverDescriptors = descriptors
@@ -128,16 +132,19 @@ function initTransport(settings) {
 
         return Promise.all(serverDescriptors
             .map(d => {
-                console.log('Will consume', d.consume.queue.name);
-                return channel.consume(d.consume.queue.name, msg => {
-                    if (msg !== null) {
-                        execJob(d.job, channel, msg, d.produce && d.produce.queue.name);
-                    }
-                })
-                    .then(() => console.log('Ready to consume queue',
-                                            d.consume.queue.name));
-            })
-        );
+                console.log('Will consume', d.consume.queue.exchange, d.consume.queue.routes);
+                return Promise.all(d.consume.queue.routes.map(route => {
+                    const queueName = [d.consume.queue.exchange, route].join('.');
+
+                    return channel.consume(queueName, msg => {
+                        if (msg !== null) {
+                            execJob(d.handler[route], channel, msg, d.produce && d.produce.queue.exchange);
+                        }
+                    })
+                        .then(() => console.log('Ready to consume queue',
+                                                queueName));
+                }));
+            }));
     }
 
     function addQueue(queueDescriptor) {
@@ -210,33 +217,55 @@ function initTransport(settings) {
     }
 
     function assertQueues(channel, queues) {
-        console.log('asserting %d queues', queues.length);
+        console.log('asserting %d exchanges', queues.length);
         return queues.reduce(
-            (flow, q) => flow.then(() => channel.assertQueue(q.name, q.options)),
+            (flow, q) => flow.then(() => {
+                return Promise.all(q.routes.map(route => {
+                    const queueName = [ q.exchange, route ].join('.');
+
+                    console.log('bind "%s" to "%s" exchange', queueName, q.exchange);
+                    return channel.assertExchange(q.exchange, 'direct')
+                        .then(() => channel.assertQueue(
+                            queueName,
+                            q.options
+                        ))
+                        .then(() => channel.bindQueue(
+                            queueName,
+                            q.exchange,
+                            route,
+                            q.options
+                        ));
+                }));
+            }),
             Promise.resolve()
-        ).then(() => console.log('%d queues asserted', queues.length));
+        ).then(() => console.log('%d exchanges asserted', queues.length));
     }
 
-    function execJob(job, channel, msg, respondTo) {
+    function execJob(handler, channel, msg, respondTo) {
         const data = JSON.parse(msg.content.toString());
-        job(data.params)
-            .then(result => {
-                channel.sendToQueue(
+        Promise.resolve(handler(data.payload))
+            .then(payload => {
+
+                channel.ack(msg);
+                if (!respondTo) {
+                    return;
+                }
+
+                channel.publish(
                     respondTo,
+                    'result',
                     new Buffer(JSON.stringify({
-                        status: 'success',
-                        result
+                        payload
                     }))
                 );
-                channel.ack(msg);
             })
             .catch(error => {
-                channel.sendToQueue(
+                channel.publish(
                     respondTo,
+                    'error',
                     new Buffer(JSON.stringify({
-                        status: 'error',
                         // TODO add external presenter for error
-                        error: {
+                        payload: {
                             message: String(error.message),
                             stack: String(error.stack),
                             details: error.details
