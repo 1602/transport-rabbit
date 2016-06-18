@@ -1,0 +1,11 @@
+{
+  "name": "consumer",
+  "version": "1.0.0",
+  "description": "Example queue messages consumer app",
+  "main": "index.js",
+  "author": "Anatoliy Chakkaev",
+  "license": "ISC",
+  "dependencies": {
+      "rabbit-amqp": "1.0.0"
+  }
+}

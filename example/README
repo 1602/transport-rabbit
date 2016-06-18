@@ -1,0 +1,13 @@
+
+
+
+  Client (producer)                              Server (consumer)
++--------------------+                         +--------------------+
+|                    |  url_resolution_task    |                    |
+|  produce task      +------------------------>+  consume tasks     |
+|  (command)         |                         |  (command)         |
+|                    |                         |                    |
+|  consume results   |  url_resolution_result  |  produce results   |
+|  (result, error)   +<------------------------+  (result, error)   |
+|                    |                         |                    |
++--------------------+                         +--------------------+

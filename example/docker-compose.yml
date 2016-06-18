@@ -1,0 +1,35 @@
+version: '2'
+services:
+
+  producer:
+    build:
+      context: ./producer
+    environment:
+      - RABBIT_HOST=rabbit
+    volumes:
+      - ./producer:/src
+      - ../index.js:/src/transport.js
+
+  consumer:
+    build:
+      context: ./consumer
+    environment:
+      - RABBIT_HOST=rabbit
+    volumes:
+      - ./consumer:/src
+      - ../index.js:/src/transport.js
+
+  rabbit:
+    image: rabbitmq:3-management
+    hostname: rabbit
+    environment:
+      - HOSTNAME=rabbit
+      - RABBITMQ_NODENAME=rabbit
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    ports:
+      - 5672:5672
+      - 15672:15672
+    #volumes:
+    #  - "/opt/rabbitmq/volume:/var/lib/rabbitmq"
+
