@@ -18,11 +18,13 @@ function initTransport(settings) {
 
     const queues = [];
     const descriptors = [];
+    const rpcCallbackQueues = Object.create(null);
+    const awaitingResponseHandlers = Object.create(null);
 
     const transport = {
         server,
         client,
-        send,
+        rpc,
         close() {
             state = 'disconnected';
             reconnect = false;
@@ -39,25 +41,6 @@ function initTransport(settings) {
     setup();
 
     return transport;
-
-    function send(name, route, payload) {
-        const client = descriptors.find(d => d.type === 'client' &&
-            d.spec.name === name);
-
-        if (!latestChannel) {
-            throw new Error('Client is not connected to channel');
-        }
-
-        console.info('Sending task "%s" to queue "%s"', name, client.spec.produce.queue.exchange);
-
-        latestChannel.publish(
-            client.spec.produce.queue.exchange,
-            route,
-            new Buffer(JSON.stringify({
-                payload
-            }))
-        );
-    }
 
     function setup() {
         if (state === 'disconnected') {
@@ -91,7 +74,7 @@ function initTransport(settings) {
 
                     return assertQueues(channel, queues)
                         .then(() => listenServers(channel))
-                        // .then(() => initClients(channel))
+                        .then(() => initRPC(channel))
                         .then(() => latestChannel = channel);
                 }
             });
@@ -118,12 +101,51 @@ function initTransport(settings) {
             });
     }
 
-    // function initClients() {
-    //     const clientDescriptors = descriptors
-    //         .filter(d => d.type === 'client')
-    //         .map(d => d.spec);
+    function initRPC(channel) {
+        const rpcDescriptors = descriptors
+            .filter(d => d.type === 'rpc')
+            .map(d => d.spec);
 
-    // }
+        return Promise.all(rpcDescriptors
+            .map(d => {
+                const exchange = d.produce.queue.exchange;
+                const route = d.produce.queue.routes[0];
+                const requestQueue = [ exchange, route ].join('.');
+
+                return Promise.all([
+                    channel.assertQueue('', { exclusive: true }),
+                    channel.assertQueue('', { exclusive: true })
+                ])
+                    .then(queues => {
+                        const reply = queues[0];
+                        const error = queues[1];
+                        rpcCallbackQueues[requestQueue] = { reply, error };
+
+                        return Promise.all([
+                            channel.consume(reply.queue, msg => {
+                                if (msg === null) {
+                                    return;
+                                }
+                                channel.ack(msg);
+                                const data = JSON.parse(msg.content.toString());
+                                const corrId = msg.properties.correlationId;
+                                awaitingResponseHandlers[corrId].resolve(data.payload);
+                                delete awaitingResponseHandlers[corrId];
+                            }),
+                            channel.consume(error.queue, msg => {
+                                if (msg === null) {
+                                    return;
+                                }
+                                channel.ack(msg);
+                                const data = JSON.parse(msg.content.toString());
+                                const corrId = msg.properties.correlationId;
+                                awaitingResponseHandlers[corrId].reject(data.payload);
+                                delete awaitingResponseHandlers[corrId];
+                            })
+                        ]);
+                    });
+            }));
+    }
 
     function listenServers(channel) {
         const serverDescriptors = descriptors
@@ -137,6 +159,7 @@ function initTransport(settings) {
                     const queueName = [d.consume.queue.exchange, route].join('.');
 
                     return channel.consume(queueName, msg => {
+                        console.log('Received msg to', queueName);
                         if (msg !== null) {
                             execJob(d.handler[route], channel, msg, d.produce && d.produce.queue.exchange);
                         }
@@ -168,8 +191,6 @@ function initTransport(settings) {
         if (spec.produce) {
             addQueue(spec.produce);
         }
-
-        return transport;
     }
 
     function client(spec) {
@@ -180,8 +201,48 @@ function initTransport(settings) {
             type: 'client',
             spec
         });
+    }
 
-        return transport;
+    function rpc(spec) {
+        assert(spec.produce, 'Client must have queue to produce to specified');
+        addQueue(spec.produce);
+
+        descriptors.push({
+            type: 'rpc',
+            spec
+        });
+
+        const exchange = spec.produce.queue.exchange;
+        const route = spec.produce.queue.routes[0];
+        const requestQueue = [ exchange, route ].join('.');
+        const correlationId = generateId();
+        const deferred = Promise.defer();
+        awaitingResponseHandlers[correlationId] = deferred;
+
+        return function send(payload) {
+
+            if (!latestChannel) {
+                throw new Error('Client is not connected to channel');
+            }
+
+            console.info('Sending msg to queue "%s"', requestQueue);
+
+            latestChannel.publish(
+                exchange,
+                route,
+                new Buffer(JSON.stringify({ payload })),
+                {
+                    correlationId,
+                    replyTo: [
+                        rpcCallbackQueues[requestQueue].reply.queue,
+                        rpcCallbackQueues[requestQueue].error.queue
+                    ].join('|')
+                }
+            );
+
+            return deferred.promise;
+        }
+
     }
 
     function connect() {
@@ -247,6 +308,19 @@ function initTransport(settings) {
             .then(payload => {
 
                 channel.ack(msg);
+
+                const replyTo = msg.properties.replyTo &&
+                    msg.properties.replyTo.split('|').shift();
+
+                if (replyTo) {
+                    channel.sendToQueue(
+                        replyTo,
+                        new Buffer(JSON.stringify({ payload })),
+                        { correlationId: msg.properties.correlationId }
+                    );
+                    return;
+                }
+
                 if (!respondTo) {
                     return;
                 }
@@ -260,20 +334,46 @@ function initTransport(settings) {
                 );
             })
             .catch(error => {
+
+                channel.ack(msg);
+
+                const replyTo = msg.properties.replyTo &&
+                    msg.properties.replyTo.split('|').pop();
+
+                // TODO add external presenter for error
+                const payload = {
+                    message: String(error.message),
+                    stack: String(error.stack),
+                    details: error.details
+                };
+
+                console.log(error, replyTo);
+
+                if (replyTo) {
+                    channel.sendToQueue(
+                        replyTo,
+                        new Buffer(JSON.stringify({ payload })),
+                        { correlationId: msg.properties.correlationId }
+                    );
+                    return;
+                }
+
+                if (!respondTo) {
+                    return;
+                }
+
                 channel.publish(
                     respondTo,
                     'error',
-                    new Buffer(JSON.stringify({
-                        // TODO add external presenter for error
-                        payload: {
-                            message: String(error.message),
-                            stack: String(error.stack),
-                            details: error.details
-                        }
-                    }))
+                    new Buffer(JSON.stringify({ payload }))
                 );
-                channel.nack(msg);
             });
+    }
+
+    function generateId() {
+        return Math.random().toString(36).substr(2) +
+            Math.random().toString(36).substr(1) +
+            Math.random().toString(36).substr(1);
     }
              
 }
