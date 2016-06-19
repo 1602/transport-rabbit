@@ -1,13 +1,14 @@
-
+Async tasks flow
 
 
   Client (producer)                              Server (consumer)
 +--------------------+                         +--------------------+
 |                    |  url_resolution_task    |                    |
-|  produce task      +------------------------>+  consume tasks     |
+|  produce task      +------------------------->  consume task      |
 |  (command)         |                         |  (command)         |
 |                    |                         |                    |
 |  consume results   |  url_resolution_result  |  produce results   |
-|  (result, error)   +<------------------------+  (result, error)   |
+|  (result, error)   <-------------------------+  (result, error)   |
 |                    |                         |                    |
 +--------------------+                         +--------------------+
+ ./consumer/index.js                            ./producer/index.js
