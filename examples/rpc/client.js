@@ -7,7 +7,8 @@ const transport = queueTransport({
     url: `amqp://${rabbitHost}:5672`,
     reconnect: true,
     quitGracefullyOnTerm: true,
-    prefetch: 1
+    prefetch: 1,
+    rpcTimeout: 10 * 1000
 })
 
 const calcFibo = transport.rpc({
@@ -21,11 +22,11 @@ const calcFibo = transport.rpc({
                 autoDelete: false
             }
         }
-    }
+    },
 });
 
 setTimeout(() => calcFibo({ n: 10 })
     .then(result => console.info('Received result', result))
     .catch(err => console.error('Received error', err))
-, 3000);
+, 1000);
 

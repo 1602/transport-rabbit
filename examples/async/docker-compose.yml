@@ -2,22 +2,24 @@ version: '2'
 services:
 
   producer:
-    build:
-      context: ./producer
+    image: 1602/alpine-node:4
     environment:
       - RABBIT_HOST=rabbit
+    working_dir: /src
     volumes:
-      - ./producer:/src
-      - ../index.js:/src/transport.js
+      - ./producer.js:/src/index.js
+      - ../../:/src/node_modules/transport-rabbit
+    command: [ 'node', 'index.js' ]
 
   consumer:
-    build:
-      context: ./consumer
+    image: 1602/alpine-node:4
     environment:
       - RABBIT_HOST=rabbit
+    working_dir: /src
     volumes:
-      - ./consumer:/src
-      - ../index.js:/src/transport.js
+      - ./consumer.js:/src/index.js
+      - ../../:/src/node_modules/transport-rabbit
+    command: [ 'node', 'index.js' ]
 
   rabbit:
     image: rabbitmq:3-management
