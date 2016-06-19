@@ -20,6 +20,17 @@ function initTransport(settings) {
     const descriptors = [];
     const rpcCallbackQueues = Object.create(null);
     const awaitingResponseHandlers = Object.create(null);
+    const awaitingExpiration = [];
+
+    const expirationInterval = setInterval(() => {
+        const now = Date.now();
+        let expireMe;
+        while (awaitingExpiration[0] && awaitingExpiration[0].expireAt <= now) {
+            expireMe = awaitingExpiration.shift();
+            expireMe.deferred.reject(new Error('Awaiting response handler expired by timeout'));
+            delete awaitingResponseHandlers[expireMe.correlationId];
+        }
+    }, 1000);
 
     const transport = {
         server,
@@ -28,6 +39,7 @@ function initTransport(settings) {
         close() {
             state = 'disconnected';
             reconnect = false;
+            clearInterval(expirationInterval);
             latestConnection.close();
         },
         isConnected: () => state === 'connected'
@@ -129,8 +141,9 @@ function initTransport(settings) {
                                 channel.ack(msg);
                                 const data = JSON.parse(msg.content.toString());
                                 const corrId = msg.properties.correlationId;
-                                awaitingResponseHandlers[corrId].resolve(data.payload);
+                                awaitingResponseHandlers[corrId].deferred.resolve(data.payload);
                                 delete awaitingResponseHandlers[corrId];
+                                awaitingExpiration.splice(awaitingExpiration.indexOf(awaitingResponseHandlers[corrId]), 1);
                             }),
                             channel.consume(error.queue, msg => {
                                 if (msg === null) {
@@ -139,8 +152,9 @@ function initTransport(settings) {
                                 channel.ack(msg);
                                 const data = JSON.parse(msg.content.toString());
                                 const corrId = msg.properties.correlationId;
-                                awaitingResponseHandlers[corrId].reject(data.payload);
+                                awaitingResponseHandlers[corrId].deferred.reject(data.payload);
                                 delete awaitingResponseHandlers[corrId];
+                                awaitingExpiration.splice(awaitingExpiration.indexOf(awaitingResponseHandlers[corrId]), 1);
                             })
                         ]);
                     });
@@ -201,10 +215,31 @@ function initTransport(settings) {
             type: 'client',
             spec
         });
+
+        const exchange = spec.produce.queue.exchange;
+        const route = spec.produce.queue.routes[0];
+        const requestQueue = [ exchange, route ].join('.');
+
+        return function send(payload) {
+            if (!latestChannel) {
+                throw new Error('Client is not connected to channel');
+            }
+
+            const correlationId = generateId();
+
+            console.info('Sending msg to queue "%s"', requestQueue);
+
+            return latestChannel.publish(
+                exchange,
+                route,
+                new Buffer(JSON.stringify({ payload })),
+                { correlationId }
+            );
+        }
     }
 
     function rpc(spec) {
-        assert(spec.produce, 'Client must have queue to produce to specified');
+        assert(spec.produce, 'Client must have queue to produce msg to specified');
         addQueue(spec.produce);
 
         descriptors.push({
@@ -215,15 +250,28 @@ function initTransport(settings) {
         const exchange = spec.produce.queue.exchange;
         const route = spec.produce.queue.routes[0];
         const requestQueue = [ exchange, route ].join('.');
-        const correlationId = generateId();
-        const deferred = Promise.defer();
-        awaitingResponseHandlers[correlationId] = deferred;
 
         return function send(payload) {
-
             if (!latestChannel) {
                 throw new Error('Client is not connected to channel');
             }
+
+            const correlationId = generateId();
+            const deferred = Promise.defer();
+
+            const responseHandler = {
+                correlationId,
+                deferred,
+                startedAt: Date.now()
+            };
+
+            if (settings.rpcTimeout) {
+                responseHandler.expireAt = responseHandler.startedAt + settings.rpcTimeout;
+                awaitingExpiration.push(responseHandler);
+            }
+
+            awaitingResponseHandlers[correlationId] = responseHandler;
+
 
             console.info('Sending msg to queue "%s"', requestQueue);
 
