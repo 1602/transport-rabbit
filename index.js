@@ -170,7 +170,7 @@ function initTransport(settings) {
             .map(d => {
                 console.log('Will consume', d.consume.queue.exchange, d.consume.queue.routes);
                 return Promise.all(d.consume.queue.routes.map(route => {
-                    const queueName = [d.consume.queue.exchange, route].join('.');
+                    const queueName = d.consume.queue.queueNames[route];
 
                     return channel.consume(queueName, msg => {
                         console.log('Received msg to', queueName);
@@ -178,8 +178,8 @@ function initTransport(settings) {
                             execJob(d.handler[route], channel, msg, d.produce && d.produce.queue.exchange);
                         }
                     })
-                        .then(() => console.log('Ready to consume queue',
-                                                queueName));
+                        .then(() => console.log('Ready to consume queue %s (%s)',
+                                                queueName, route));
                 }));
             }));
     }
@@ -217,10 +217,10 @@ function initTransport(settings) {
         });
 
         const exchange = spec.produce.queue.exchange;
-        const route = spec.produce.queue.routes[0];
+        const route = spec.produce.queue.routes && spec.produce.queue.routes[0];
         const requestQueue = [ exchange, route ].join('.');
 
-        return function send(payload) {
+        return function send(payload, toRoute) {
             if (!latestChannel) {
                 throw new Error('Client is not connected to channel');
             }
@@ -231,7 +231,7 @@ function initTransport(settings) {
 
             return latestChannel.publish(
                 exchange,
-                route,
+                toRoute || route,
                 new Buffer(JSON.stringify({ payload })),
                 { correlationId }
             );
@@ -328,24 +328,38 @@ function initTransport(settings) {
     function assertQueues(channel, queues) {
         console.log('asserting %d exchanges', queues.length);
         return queues.reduce(
-            (flow, q) => flow.then(() => {
-                return Promise.all(q.routes.map(route => {
-                    const queueName = [ q.exchange, route ].join('.');
+            (flow, q) => flow.then(() => channel.assertExchange(
+                    q.exchange,
+                    q.exchangeType || 'direct'
+                )
+                    .then(() => q.routes && Promise.all(q.routes.map(route => {
+                        const queueName = q.autogenerateQueues
+                            ? ''
+                            : [ q.exchange, route ].join('.');
 
-                    console.log('bind "%s" to "%s" exchange', queueName, q.exchange);
-                    return channel.assertExchange(q.exchange, 'direct')
-                        .then(() => channel.assertQueue(
+                        q.queueNames = {};
+
+                        return channel.assertQueue(
                             queueName,
                             q.options
-                        ))
-                        .then(() => channel.bindQueue(
-                            queueName,
-                            q.exchange,
-                            route,
-                            q.options
-                        ));
-                }));
-            }),
+                        )
+                            .then(asserted => {
+                                q.queueNames[route] = asserted.queue;
+                                console.log(
+                                    'bind "%s" to "%s" exchange using "%s" route',
+                                    asserted.queue,
+                                    q.exchange,
+                                    route);
+
+                                return channel.bindQueue(
+                                    asserted.queue,
+                                    q.exchange,
+                                    route,
+                                    q.options
+                                );
+                            });
+                    })))
+            ),
             Promise.resolve()
         ).then(() => console.log('%d exchanges asserted', queues.length));
     }
