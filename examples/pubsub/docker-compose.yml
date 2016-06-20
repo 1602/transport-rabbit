@@ -1,0 +1,34 @@
+version: '2'
+services:
+
+  publisher:
+    image: 1602/alpine-node:4
+    environment:
+      - RABBIT_HOST=rabbit
+    working_dir: /src
+    volumes:
+      - ./publisher.js:/src/index.js
+      - ../../:/src/node_modules/transport-rabbit
+    command: [ 'node', 'index.js' ]
+
+  subscriber:
+    image: 1602/alpine-node:4
+    environment:
+      - RABBIT_HOST=rabbit
+    working_dir: /src
+    volumes:
+      - ./subscriber.js:/src/index.js
+      - ../../:/src/node_modules/transport-rabbit
+    command: [ 'node', 'index.js' ]
+
+  rabbit:
+    image: rabbitmq:3-management
+    hostname: rabbit
+    environment:
+      - HOSTNAME=rabbit
+      - RABBITMQ_NODENAME=rabbit
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    ports:
+      - 8083:5672
+      #- 15672:15672
