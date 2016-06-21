@@ -11,7 +11,6 @@ const transport = queueTransport({
 });
 
 const resolveCommand = transport.client({
-    name: 'resolve',
     produce: {
         queue: {
             routes: [ 'command' ],
