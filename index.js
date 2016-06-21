@@ -173,10 +173,11 @@ function initTransport(settings) {
                     const queueName = d.consume.queue.queueNames[route];
 
                     return channel.consume(queueName, msg => {
-                        console.log('Received msg to', queueName);
-                        if (msg !== null) {
-                            execJob(d.handler[route], channel, msg, d.produce && d.produce.queue.exchange);
+                        if (msg == null) {
+                            return;
                         }
+                        console.log('Received msg to', queueName);
+                        execJob(d.handler[route], channel, msg, d.produce && d.produce.queue.exchange);
                     })
                         .then(() => console.log('Ready to consume queue %s (%s)',
                                                 queueName, route));
@@ -390,9 +391,8 @@ function initTransport(settings) {
                 channel.publish(
                     respondTo,
                     'result',
-                    new Buffer(JSON.stringify({
-                        payload
-                    }))
+                    new Buffer(JSON.stringify({ payload })),
+                    { correlationId: msg.properties.correlationId, type: 'error' }
                 );
             })
             .catch(error => {
@@ -415,7 +415,7 @@ function initTransport(settings) {
                     channel.sendToQueue(
                         replyTo,
                         new Buffer(JSON.stringify({ payload })),
-                        { correlationId: msg.properties.correlationId }
+                        { correlationId: msg.properties.correlationId, type: 'error' }
                     );
                     return;
                 }
@@ -427,7 +427,8 @@ function initTransport(settings) {
                 channel.publish(
                     respondTo,
                     'error',
-                    new Buffer(JSON.stringify({ payload }))
+                    new Buffer(JSON.stringify({ payload })),
+                    { correlationId: msg.properties.correlationId, type: 'error' }
                 );
             });
     }
