@@ -30,6 +30,8 @@ transport.server({
     produce: {
         queue: {
             exchange: 'url-resolution',
+            // result and error in conjuncation with server + produce
+            // gives ability to produce result of job to queues
             routes: [ 'result', 'error' ],
             options: {
                 exclusive: false,
