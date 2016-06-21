@@ -20,8 +20,9 @@ const resolveCommand = transport.client({
                 durable: true,
                 autoDelete: false
             }
-        }
-    }
+        },
+    },
+    getContextId: context => Job.create({ context }).then(job => String(job.id))
 });
 
 transport.server({
@@ -37,18 +38,41 @@ transport.server({
         }
     },
     handler: {
-        result: opts => console.log('received result', opts),
-        error: err => console.log('received error', err)
-    }
+        result: (opts, context) => console.log('received result', opts, context),
+        error: (err, context) => console.log('received error', err, context)
+    },
+    getContextById: contextId => Job.find(contextId).then(job => job.context)
 });
 
+// put some jobs to the queue
 const int = setInterval(() => {
     if (transport.isConnected()) {
         resolveCommand({
             url: 'http://google.com',
             proxy: 'gb'
+        }, null, {
+            // some arbitrary context
+            context: {
+                appId: 1,
+                opts: { screenshot: true, logs: true},
+            }
         });
         setTimeout(() => clearInterval(int), 5000);
     }
 }, 1000);
+
+// mimic ORM
+const jobs = [];
+
+function Job(data) {
+    jobs.push(Object.assign(this, data, { id: jobs.length + 1 }));
+}
+
+Job.create = data => Promise.resolve(new Job(data));
+Job.find = id => {
+    console.log('trying to find job by id', id);
+    const job = jobs.find(j => j.id === Number(id));
+    console.log('found', job);
+    return Promise.resolve(job);
+};
 

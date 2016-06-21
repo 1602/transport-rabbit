@@ -177,7 +177,7 @@ function initTransport(settings) {
                             return;
                         }
                         console.log('Received msg to', queueName);
-                        execJob(d.handler[route], channel, msg, d.produce && d.produce.queue.exchange);
+                        execJob(d.handler[route], channel, msg, d.produce && d.produce.queue.exchange, d.getContextById);
                     })
                         .then(() => console.log('Ready to consume queue %s (%s)',
                                                 queueName, route));
@@ -221,21 +221,30 @@ function initTransport(settings) {
         const route = spec.produce.queue.routes && spec.produce.queue.routes[0];
         const requestQueue = [ exchange, route ].join('.');
 
-        return function send(payload, toRoute) {
+        return function send(payload, toRoute, opts) {
             if (!latestChannel) {
                 throw new Error('Client is not connected to channel');
             }
 
-            const correlationId = generateId();
+            Promise.resolve(getCorrelationId(opts && opts.context))
+                .then(correlationId => {
+                    console.info('Sending msg to queue "%s"', requestQueue, toRoute || route, 'corrId =', correlationId);
 
-            console.info('Sending msg to queue "%s"', requestQueue);
+                    return latestChannel.publish(
+                        exchange,
+                        toRoute || route,
+                        new Buffer(JSON.stringify({ payload })),
+                        { correlationId }
+                    );
+                });
+        }
 
-            return latestChannel.publish(
-                exchange,
-                toRoute || route,
-                new Buffer(JSON.stringify({ payload })),
-                { correlationId }
-            );
+        function getCorrelationId(context) {
+            if (context && spec.getContextId) {
+                return spec.getContextId(context);
+            }
+
+            return generateId();
         }
     }
 
@@ -365,9 +374,11 @@ function initTransport(settings) {
         ).then(() => console.log('%d exchanges asserted', queues.length));
     }
 
-    function execJob(handler, channel, msg, respondTo) {
+    function execJob(handler, channel, msg, respondTo, getContextById) {
         const data = JSON.parse(msg.content.toString());
-        Promise.resolve(handler(data.payload))
+
+        Promise.resolve(getContext())
+            .then(context => handler(data.payload, context))
             .then(payload => {
 
                 channel.ack(msg);
@@ -431,6 +442,18 @@ function initTransport(settings) {
                     { correlationId: msg.properties.correlationId, type: 'error' }
                 );
             });
+
+        function getContext() {
+            if ('function' !== typeof getContextById) {
+                return null;
+            }
+
+            if (!msg.properties.correlationId) {
+                return null;
+            }
+
+            return getContextById(msg.properties.correlationId);
+        }
     }
 
     function generateId() {
