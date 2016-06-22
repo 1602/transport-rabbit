@@ -1,7 +1,7 @@
 version: '2'
 services:
 
-  producer:
+  producer: &example
     image: 1602/alpine-node:4
     environment:
       - RABBIT_HOST=rabbit
@@ -12,14 +12,10 @@ services:
     command: [ 'node', 'index.js' ]
 
   consumer:
-    image: 1602/alpine-node:4
-    environment:
-      - RABBIT_HOST=rabbit
-    working_dir: /src
+    <<: *example
     volumes:
       - ./consumer.js:/src/index.js
       - ../../:/src/node_modules/transport-rabbit
-    command: [ 'node', 'index.js' ]
 
   rabbit:
     image: rabbitmq:3-management

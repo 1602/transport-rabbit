@@ -70,9 +70,7 @@ function Job(data) {
 
 Job.create = data => Promise.resolve(new Job(data));
 Job.find = id => {
-    console.log('trying to find job by id', id);
     const job = jobs.find(j => j.id === Number(id));
-    console.log('found', job);
     return Promise.resolve(job);
 };
 
