@@ -347,36 +347,44 @@ function initTransport(settings) {
                     q.exchange,
                     q.exchangeType || 'direct'
                 )
-                    .then(() => q.routes && Promise.all(q.routes.map(route => {
-                        const queueName = q.autogenerateQueues
-                            ? ''
-                            : [ q.exchange, route ].join('.');
-
-                        q.queueNames = {};
-
-                        return channel.assertQueue(
-                            queueName,
-                            q.options
-                        )
-                            .then(asserted => {
-                                q.queueNames[route] = asserted.queue;
-                                console.log(
-                                    'bind "%s" to "%s" exchange using "%s" route',
-                                    asserted.queue,
-                                    q.exchange,
-                                    route);
-
-                                return channel.bindQueue(
-                                    asserted.queue,
-                                    q.exchange,
-                                    route,
-                                    q.options
-                                );
-                            });
-                    })))
+                    .then(() => assertRoutes(q.routes, q))
             ),
             Promise.resolve()
         ).then(() => console.log('%d exchanges asserted', queues.length));
+
+        function assertRoutes(routes, q) {
+            if (!routes) {
+                return;
+            }
+
+            return Promise.all(routes.map(route => {
+                const queueName = q.autogenerateQueues
+                    ? ''
+                    : [ q.exchange, route ].join('.');
+
+                q.queueNames = {};
+
+                return channel.assertQueue(
+                    queueName,
+                    q.options
+                )
+                    .then(asserted => {
+                        q.queueNames[route] = asserted.queue;
+                        console.log(
+                            'bind "%s" to "%s" exchange using "%s" route',
+                            asserted.queue,
+                            q.exchange,
+                            route);
+
+                        return channel.bindQueue(
+                            asserted.queue,
+                            q.exchange,
+                            route,
+                            q.options
+                        );
+                    });
+            }));
+        }
     }
 
     function execJob(handler, channel, msg, respondTo, getContextById) {
