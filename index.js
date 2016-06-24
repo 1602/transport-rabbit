@@ -237,7 +237,7 @@ function initTransport(settings) {
                         { correlationId }
                     );
                 });
-        }
+        };
 
         function getCorrelationId(context) {
             if (context && spec.getContextId) {
@@ -299,7 +299,7 @@ function initTransport(settings) {
             );
 
             return deferred.promise;
-        }
+        };
 
     }
 
@@ -310,7 +310,7 @@ function initTransport(settings) {
                     console.error('Error while connecting, will try to reconnect',
                                   err);
 
-                    return new Promise(r => setTimeout(() => r(connect()), 2000))
+                    return new Promise(r => setTimeout(() => r(connect()), 2000));
                 }
 
                 throw err;
@@ -329,7 +329,7 @@ function initTransport(settings) {
             })
             .then(channel => {
                 if (channel) {
-                    console.log('Connected to queue')
+                    console.log('Connected to queue');
                 }
                 return channel;
             });

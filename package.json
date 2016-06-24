@@ -10,5 +10,8 @@
   "license": "ISC",
   "dependencies": {
     "amqplib": "=0.4.1"
+  },
+  "devDependencies": {
+    "eslint": "^2.13.1"
   }
 }

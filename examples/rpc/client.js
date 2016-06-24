@@ -9,7 +9,7 @@ const transport = queueTransport({
     quitGracefullyOnTerm: true,
     prefetch: 1,
     rpcTimeout: 10 * 1000
-})
+});
 
 const calcFibo = transport.rpc({
     produce: {
