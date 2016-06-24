@@ -32,10 +32,14 @@ function initTransport(settings) {
         }
     }, 1000);
 
+    const EventEmitter = require('events');
+    const events = new EventEmitter();
+
     const transport = {
         server,
         client,
         rpc,
+        events,
         close() {
             state = 'disconnected';
             reconnect = false;
@@ -109,6 +113,7 @@ function initTransport(settings) {
                 });
                 latestConnection = connection;
                 state = 'connected';
+                transport.events.emit('connected');
                 return connection;
             });
     }

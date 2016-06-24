@@ -25,8 +25,8 @@ const calcFibo = transport.rpc({
     },
 });
 
-setTimeout(() => calcFibo({ n: 10 })
+transport.events.once('connected', () => calcFibo({ n: 10 })
     .then(result => console.info('Received result', result))
     .catch(err => console.error('Received error', err))
-, 1000);
+);
 
