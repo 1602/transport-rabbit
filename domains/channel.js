@@ -15,7 +15,12 @@ function channel() {
     return {
         events,
         bind,
-        get: () => currentChannel
+        get: () => {
+            if (!currentChannel) {
+                throw new Error('Client is not connected to channel');
+            }
+            return currentChannel;
+        }
     };
 
     function bind(channel, settings) {

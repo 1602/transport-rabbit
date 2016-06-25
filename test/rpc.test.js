@@ -12,9 +12,10 @@ describe('rpc', () => {
     let runFiboRpc;
     let client;
     let server;
+    const clientSettings = { url: rabbitUrl, rpcExpirationInterval: 100 };
 
-    before(() => {
-        client = queueTransport({ url: rabbitUrl });
+    beforeEach(() => {
+        client = queueTransport(clientSettings);
         server = queueTransport({ url: rabbitUrl });
 
         runFiboRpc = client.rpc({
@@ -57,13 +58,26 @@ describe('rpc', () => {
         ]);
     });
 
-    after(() => Promise.all([client.close(), server.close()]));
+    afterEach(() => Promise.all([client.close(), server.close()]));
 
     it('should work', () => {
+        delete clientSettings.rpcTimeout;
         return runFiboRpc({ n: 1 });
     });
 
+    it('should end by timeout', () => {
+        clientSettings.rpcTimeout = 100;
+        return runFiboRpc({ n: 500 })
+            .then(() => {
+                throw new Error('Unexpected success');
+            })
+            .catch(err => {
+                expect(err.message).toEqual('Awaiting response handler expired by timeout');
+            });
+    });
+
     it('should catch', () => {
+        delete clientSettings.rpcTimeout;
         return runFiboRpc({ n: -1 })
             .then(() => {
                 throw new Error('Unexpected success');
@@ -77,6 +91,10 @@ describe('rpc', () => {
 
 function calculateNonRecursive(n) {
     assert(isNatural(n), 'n is not a natural number');
+
+    if (n >= 500) {
+        return new Promise(resolve => setTimeout(resolve, 300));
+    }
 
     let a = 1, b = 1, next;
     if (n <= 2) {

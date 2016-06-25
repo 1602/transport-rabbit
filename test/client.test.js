@@ -3,6 +3,7 @@
 const expect = require('expect');
 const queueTransport = require('../');
 const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.101:5672';
+const jobs = [];
 
 /* eslint max-nested-callbacks: [2, 6] */
 
@@ -11,7 +12,7 @@ describe('client', () => {
     let transport;
     let enqueueMessage;
 
-    before(() => {
+    beforeEach(() => {
         transport = queueTransport({
             url: rabbitUrl
         });
@@ -22,19 +23,23 @@ describe('client', () => {
                     exchange: 'log',
                     routes: [ 'info', 'warn', 'error' ]
                 }
-            }
+            },
+            getContextId: context => Job.create({ context }).then(job => String(job.id))
         });
 
         return transport.getReady()
-            .then(() => transport.queue.purge('log.info'));
+            .then(() => Promise.all([
+                transport.queue.purge('log.info'),
+                transport.queue.purge('log.error')
+            ]));
     });
 
-    after(() => transport.close());
+    afterEach(() => transport.close());
 
     it('should publish message to queue', () => {
         return Promise.resolve(enqueueMessage('Hello world', 'info'))
             .then(result => {
-                expect(result).toBe(undefined);
+                expect(result).toBe(true);
             })
             .then(() => Promise.all([
                 transport.queue.messageCount('log.info'),
@@ -48,7 +53,41 @@ describe('client', () => {
             });
     });
 
+    it('should support context', () => {
+        return enqueueMessage('log message', 'error', { context: { hello: 'world' } })
+            .then(() => expect(jobs.length).toBe(1));
+    });
+
+    it('should throw when called to early', () => {
+        return transport.close()
+            .then(() => {
+                transport = queueTransport({ url: rabbitUrl });
+                enqueueMessage = transport.client({
+                    produce: {
+                        queue: {
+                            exchange: 'log',
+                            routes: [ 'info', 'warn', 'error' ]
+                        }
+                    }
+                });
+                expect(() => enqueueMessage('hello', 'warn')).toThrow('Client is not connected to channel');
+                return transport.getReady();
+            });
+    });
+
     it('should live more than 1 second', done => setTimeout(done, 1200));
 
 });
+
+// mimic ORM
+
+function Job(data) {
+    jobs.push(Object.assign(this, data, { id: jobs.length + 1 }));
+}
+
+Job.create = data => Promise.resolve(new Job(data));
+Job.find = id => {
+    const job = jobs.find(j => j.id === Number(id));
+    return Promise.resolve(job);
+};
 

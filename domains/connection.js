@@ -69,7 +69,7 @@ function init(settings) {
         return Promise.resolve(connection)
             .then(connection => {
                 connection.on('error', err => {
-                    console.error('Connection error', err);
+                    debug('Connection error', err);
                 });
                 connection.on('close', () => {
                     state = 'disconnected';
