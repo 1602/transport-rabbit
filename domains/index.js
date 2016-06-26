@@ -8,6 +8,7 @@ const createRpcFabric = require('./rpc');
 const createClientFabric = require('./client');
 const createServerFabric = require('./server');
 const queue = require('./queue');
+const debug = require('debug')('transport');
 
 module.exports = initTransport;
 
@@ -47,7 +48,7 @@ function initTransport(settings) {
             .catch(err => {
                 // might happen if more than MAX_CHANNELS channels created
                 // 65536 by default in rabbit version 3
-                console.error('Error while creating channel. Closing connection.', err);
+                debug('Error while creating channel. Closing connection.', err);
                 connection.close();
             })
             .then(ch => channel.bind(ch, queues, settings))

@@ -47,7 +47,7 @@ function createClientFabric(transportLink, channelLink) {
                 return spec.getContextId(context);
             }
 
-            return generateId();
+            return null;
         }
     }
 

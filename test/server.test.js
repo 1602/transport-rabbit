@@ -69,11 +69,9 @@ describe('server', () => {
             },
             handler: {
                 result: res => {
-                    console.log('result handler called');
                     result1 = res;
                 },
                 error: err => {
-                    console.log('error handler called');
                     result2 = err;
                 }
             },
