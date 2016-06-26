@@ -14,6 +14,7 @@ function init(settings) {
     const events = new EventEmitter();
 
     let reconnect = settings.reconnect;
+    let reconnectTimeout;
     let state = 'disconnected';
     let latestConnection = null;
 
@@ -47,18 +48,26 @@ function init(settings) {
         return latestConnection && latestConnection.createChannel();
     }
 
+    function close() {
+        reconnect = false;
+        if (!isDisconnected()) {
+            return closeConnection();
+        }
+    }
+
     function closeConnection() {
         state = 'disconnected';
         return latestConnection && latestConnection.close();
     }
 
     function connect(settings) {
+        reconnectTimeout = settings.reconnectTimeout || DEFAULT_RECONNECT_TIMEOUT;
         return amqplib.connect(settings.url)
             .catch(err => {
                 if (reconnect) {
                     debug('Error while connecting, will try to reconnect', err);
 
-                    return new Promise(r => setTimeout(() => r(connect(settings)), settings.reconnectTimeout || DEFAULT_RECONNECT_TIMEOUT));
+                    return new Promise(r => setTimeout(() => r(connect(settings)), reconnectTimeout));
                 }
 
                 throw err;
@@ -75,9 +84,7 @@ function init(settings) {
                     state = 'disconnected';
                     if (reconnect) {
                         debug('Connection closed. Will reconnect in a moment');
-                        setTimeout(() => {
-                            setupConnection(connect(settings));
-                        }, settings.reconnectTimeout || DEFAULT_RECONNECT_TIMEOUT);
+                        setTimeout(() => setupConnection(connect(settings)), reconnectTimeout);
                     } else {
                         debug('Connection closed. Will not reconnect');
                     }
