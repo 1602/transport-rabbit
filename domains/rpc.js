@@ -118,10 +118,10 @@ function createRpcFabric(transportLink, channelLink, settings) {
 
         function consume(queueName, action) {
             return transportLink.queue.consume(queueName, msg => {
-                debug('Received', msg.properties.type, 'to', queueName);
+                debug('Received', msg && msg.properties.type, 'to', queueName);
                 channel.get().ack(msg);
                 const data = JSON.parse(msg.content.toString());
-                const corrId = msg.properties.correlationId;
+                const corrId = msg && msg.properties.correlationId;
                 awaitingResponseHandlers[corrId].deferred[action](data.payload);
                 delete awaitingResponseHandlers[corrId];
                 awaitingExpiration.splice(awaitingExpiration.indexOf(awaitingResponseHandlers[corrId]), 1);

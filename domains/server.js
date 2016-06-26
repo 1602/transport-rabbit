@@ -26,7 +26,7 @@ function createServerFabric(transportLink, channelLink) {
                     const queueName = d.consume.queue.queueNames[route];
 
                     return transport.queue.consume(queueName, msg => {
-                        debug('Received', (msg.properties.type || 'message'), 'to', queueName);
+                        debug(`Received ${msg && msg.properties.type || 'msg'}  to ${queueName}`);
                         execJob(d.handler[route], msg, d.produce && d.produce.queue.exchange, d.getContextById);
                     })
                         .then(() => debug('Ready to consume queue %s (%s)',
@@ -47,12 +47,12 @@ function createServerFabric(transportLink, channelLink) {
     }
 
     function execJob(handler, msg, respondTo, getContextById) {
-        const data = JSON.parse(msg.content.toString());
+        const data = msg && JSON.parse(msg.content.toString());
         const ch = channel.get();
 
         Promise.resolve(getContext())
             .catch(err => debug('Error while retrieving context', err.stack))
-            .then(context => handler(data.payload, context))
+            .then(context => handler(data && data.payload, context))
             .then(payload => reply('result', payload))
 
             // TODO add external presenter for error
@@ -66,8 +66,8 @@ function createServerFabric(transportLink, channelLink) {
 
             ch.ack(msg);
 
-            const replyTo = parseReplyTo(type, msg.properties.replyTo);
-            const correlationId = msg.properties.correlationId;
+            const replyTo = parseReplyTo(type, msg && msg.properties.replyTo);
+            const correlationId = msg && msg.properties.correlationId;
 
             if (replyTo) {
                 debug('Reply with %s to queue %s', type, replyTo);
@@ -99,11 +99,11 @@ function createServerFabric(transportLink, channelLink) {
                 return null;
             }
 
-            if (!msg.properties.correlationId) {
+            if (msg && !msg.properties.correlationId) {
                 return null;
             }
 
-            return getContextById(msg.properties.correlationId);
+            return getContextById(msg && msg.properties.correlationId);
         }
     }
 }
