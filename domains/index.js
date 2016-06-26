@@ -20,28 +20,16 @@ function initTransport(settings) {
 
     const transport = {
         events,
-        getReady,
-        close() {
-            events.emit('close');
-            return connection.close();
-        },
-        addQueue: spec => addQueue(spec),
+        getReady: () => new Promise(resolve => events.on('ready', resolve)),
+        close: () => connection.close(),
+        addQueue,
         isConnected: () => connection.isConnected()
     };
 
-    function getReady() {
-        return new Promise(resolve => {
-            events.on('ready', resolve);
-        });
-    }
-
-    if (settings.quitGracefullyOnTerm) {
-        process.once('SIGTERM', transport.close);
-        process.once('SIGINT', transport.close);
-    }
-
     const connection = createConnection(settings);
     const channel = createChannel();
+
+    transport.connection = connection;
 
     transport.queue = queue(transport, channel);
 
