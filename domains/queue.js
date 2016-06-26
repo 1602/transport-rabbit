@@ -18,8 +18,8 @@ module.exports = function(transportLink, channelLink) {
         purge: queueName =>
             channel.get().purgeQueue(queueName),
 
-        messageCount:
-            queueName => transport.queue.check(queueName)
+        messageCount: queueName =>
+            transport.queue.check(queueName)
                 .then(check => check.messageCount),
 
         consume: (queueName, fn) =>
