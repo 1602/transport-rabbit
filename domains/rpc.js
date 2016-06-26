@@ -20,16 +20,21 @@ function createRpcFabric(transportLink, channelLink, settings) {
     const awaitingResponseHandlers = Object.create(null);
     const awaitingExpiration = [];
 
-    const expirationInterval = setInterval(() => {
-        debug('Expire rpc');
-        const now = Date.now();
-        let expireMe;
-        while (awaitingExpiration[0] && awaitingExpiration[0].expireAt <= now) {
-            expireMe = awaitingExpiration.shift();
-            expireMe.deferred.reject(new Error('Awaiting response handler expired by timeout'));
-            delete awaitingResponseHandlers[expireMe.correlationId];
-        }
-    }, settings.rpcExpirationInterval || DEFAULT_RPC_EXPIRATION_INTERVAL);
+    const rpcExpirationInterval = settings.rpcExpirationInterval || DEFAULT_RPC_EXPIRATION_INTERVAL;
+    let expirationInterval;
+
+    function startExpirationInterval() {
+        expirationInterval = setInterval(() => {
+            debug('Expire rpc');
+            const now = Date.now();
+            let expireMe;
+            while (awaitingExpiration[0] && awaitingExpiration[0].expireAt <= now) {
+                expireMe = awaitingExpiration.shift();
+                expireMe.deferred.reject(new Error('Awaiting response handler expired by timeout'));
+                delete awaitingResponseHandlers[expireMe.correlationId];
+            }
+        }, rpcExpirationInterval);
+    }
 
     transportLink.events.on('close', () => clearInterval(expirationInterval));
 
@@ -39,6 +44,7 @@ function createRpcFabric(transportLink, channelLink, settings) {
     };
 
     function declare(spec) {
+        expirationInterval = expirationInterval || startExpirationInterval();
         assert(spec.produce, 'Client must have queue to produce msg to specified');
         transportLink.addQueue(spec.produce);
 
