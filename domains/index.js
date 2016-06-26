@@ -58,13 +58,17 @@ function initTransport(settings) {
         connection.createChannel()
             .catch(err => {
                 // might happen if more than MAX_CHANNELS channels created
-                // 65536 by default in rabbit 3
+                // 65536 by default in rabbit version 3
                 console.error('Error while creating channel. Closing connection.', err);
                 connection.close();
             })
-            .then(ch => channel.bind(ch, settings))
+            .then(ch => channel.bind(ch, queues, settings))
             .catch(err => transport.events.emit('error', err))
     );
+
+    connection.events.on('close', () => {
+        events.emit('close');
+    });
 
     channel.events.on('close', channelErrored => {
         if (channelErrored && !connection.isDisconnected()) {

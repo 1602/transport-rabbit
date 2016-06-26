@@ -71,5 +71,21 @@ describe('connection', () => {
         setTimeout(done, 500);
     });
 
+    it('should quit gracefully on SIGINT and SIGTERM when configured', () => {
+        transport = queueTransport({
+            url: rabbitUrl,
+            quitGracefullyOnTerm: true
+        });
+
+        return transport.getReady()
+            .then(() => process.emit('SIGTERM'))
+            .then(() => getClose());
+
+        function getClose() {
+            return new Promise(resolve => transport.events.on('close', resolve));
+        }
+
+    });
+
 });
 

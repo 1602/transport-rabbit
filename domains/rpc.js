@@ -110,7 +110,7 @@ function createRpcFabric(transportLink, channelLink, settings) {
 
         function consume(queueName, action) {
             return transportLink.queue.consume(queueName, msg => {
-                debug('Received', (msg.properties.type || 'message'), 'to', queueName);
+                debug('Received', msg.properties.type, 'to', queueName);
                 channel.get().ack(msg);
                 const data = JSON.parse(msg.content.toString());
                 const corrId = msg.properties.correlationId;

@@ -18,6 +18,11 @@ function init(settings) {
     let state = 'disconnected';
     let latestConnection = null;
 
+    if (settings.quitGracefullyOnTerm) {
+        process.once('SIGTERM', close);
+        process.once('SIGINT', close);
+    }
+
     setupConnection(connect(settings));
 
     return {
@@ -25,14 +30,7 @@ function init(settings) {
         isConnected,
         isDisconnected,
         createChannel,
-
-        close() {
-            reconnect = false;
-            if (!isDisconnected()) {
-                return closeConnection();
-            }
-        },
-
+        close,
         forceClose: () => closeConnection()
     };
 
@@ -87,6 +85,7 @@ function init(settings) {
                         setTimeout(() => setupConnection(connect(settings)), reconnectTimeout);
                     } else {
                         debug('Connection closed. Will not reconnect');
+                        events.emit('close');
                     }
                 });
                 latestConnection = connection;
