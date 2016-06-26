@@ -51,8 +51,10 @@ function createServerFabric(transportLink, channelLink) {
         const ch = channel.get();
 
         Promise.resolve(getContext())
+            .catch(err => debug('Error while retrieving context', err.stack))
             .then(context => handler(data.payload, context))
             .then(payload => reply('result', payload))
+
             // TODO add external presenter for error
             .catch(error => reply('error', {
                 message: String(error.message),
