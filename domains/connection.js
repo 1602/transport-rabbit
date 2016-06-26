@@ -48,7 +48,9 @@ function init(settings) {
 
     function close() {
         reconnect = false;
-        if (!isDisconnected()) {
+        if (isDisconnected()) {
+            events.emit('close');
+        } else {
             return closeConnection();
         }
     }
