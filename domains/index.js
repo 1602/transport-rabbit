@@ -31,6 +31,7 @@ function initTransport(settings) {
     const channel = createChannel();
 
     transport.connection = connection;
+    transport.channel = channel;
 
     transport.queue = queue(transport, channel);
 
