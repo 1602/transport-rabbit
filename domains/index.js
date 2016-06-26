@@ -1,7 +1,6 @@
 'use strict';
 
 const assert = require('assert');
-const debug = require('debug')('transport');
 
 const createConnection = require('./connection');
 const createChannel = require('./channel');
@@ -81,7 +80,6 @@ function initTransport(settings) {
 
     function setupChannel() {
         return Promise.resolve()
-            .then(() => assertQueues())
             .then(() => Promise.all([server.init(), rpc.init()]));
     }
 
@@ -92,60 +90,6 @@ function initTransport(settings) {
 
     function isValidQueueDescriptor(queueDescriptor) {
         return queueDescriptor instanceof Object && queueDescriptor.queue instanceof Object;
-    }
-
-    function assertQueues() {
-        if (!queues.length) {
-            return;
-        }
-
-        const ch = channel.get();
-
-        debug('asserting %d exchanges', queues.length);
-        return queues.reduce(
-            (flow, q) => flow.then(() => ch.assertExchange(
-                    q.exchange,
-                    q.exchangeType || 'direct'
-                )
-                    .then(() => {
-                        if (q.routes) {
-                            return assertRoutes(q.routes, q);
-                        }
-                    })
-            ),
-            Promise.resolve()
-        ).then(() => debug('%d exchanges asserted', queues.length));
-
-        function assertRoutes(routes, q) {
-
-            return Promise.all(routes.map(route => {
-                const queueName = q.autogenerateQueues
-                    ? ''
-                    : [ q.exchange, route ].join('.');
-
-                q.queueNames = {};
-
-                return ch.assertQueue(
-                    queueName,
-                    q.options
-                )
-                    .then(asserted => {
-                        q.queueNames[route] = asserted.queue;
-                        debug(
-                            'bind "%s" to "%s" exchange using "%s" route',
-                            asserted.queue,
-                            q.exchange,
-                            route);
-
-                        return ch.bindQueue(
-                            asserted.queue,
-                            q.exchange,
-                            route,
-                            q.options
-                        );
-                    });
-            }));
-        }
     }
 
 }
