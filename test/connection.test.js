@@ -68,7 +68,7 @@ describe('connection', () => {
         transport.events.once('ready', () => {
             done(new Error('Unexpected connect'));
         });
-        setTimeout(done, 500);
+        setTimeout(done, 100);
     });
 
     it('should quit gracefully on SIGINT and SIGTERM when configured', () => {
@@ -85,6 +85,22 @@ describe('connection', () => {
             return new Promise(resolve => transport.events.on('close', resolve));
         }
 
+    });
+
+    it('should close connection when channel can not be opened', done => {
+        transport = queueTransport({ url: rabbitUrl });
+        const close = transport.connection.close;
+        const createChannel = transport.connection.createChannel;
+
+        transport.connection.createChannel = () =>
+            Promise.reject(new Error('Too many channels opened'));
+        transport.connection.close = () => {
+            transport.connection.createChannel = createChannel;
+            transport.connection.close = close;
+            transport.connection.close();
+            transport = null;
+            done();
+        };
     });
 
 });
