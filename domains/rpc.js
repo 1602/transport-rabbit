@@ -8,6 +8,8 @@ const helpers = require('./helpers');
 const generateId = helpers.generateId;
 const getQueueName = helpers.getQueueName;
 
+const DEFAULT_RPC_EXPIRATION_INTERVAL = 1000;
+
 function createRpcFabric(transportLink, channelLink, settings) {
 
     const transport = transportLink;
@@ -27,7 +29,7 @@ function createRpcFabric(transportLink, channelLink, settings) {
             expireMe.deferred.reject(new Error('Awaiting response handler expired by timeout'));
             delete awaitingResponseHandlers[expireMe.correlationId];
         }
-    }, settings.rpcExpirationInterval);
+    }, settings.rpcExpirationInterval || DEFAULT_RPC_EXPIRATION_INTERVAL);
 
     transportLink.events.on('close', () => clearInterval(expirationInterval));
 
