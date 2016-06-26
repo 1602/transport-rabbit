@@ -30,7 +30,7 @@ function channel() {
         let channelErrored = false;
 
         channel.on('error', err => {
-            debug('Channel error', err);
+            debug('Channel error', err.stack);
             channelErrored = true;
             events.emit('error', err);
         });
