@@ -19,85 +19,160 @@ Job.find = id => {
 
 describe('server', () => {
 
-    let transport;
-    let client;
-    let result1;
-    let result2;
+    context('normal flow', () => {
 
-    before(() => {
-        transport = queueTransport({ url: rabbitUrl });
+        let transport;
+        let client;
+        let result1;
+        let context1;
+        let result2;
 
-        client = transport.client({
-            produce: {
-                queue: {
-                    exchange: 'task',
-                    routes: [ 'command' ]
-                }
-            },
-            getContextId: context => Job.create({ context }).then(job => String(job.id))
-        });
+        before(() => {
+            transport = queueTransport({ url: rabbitUrl });
 
-        transport.server({
-            consume: {
-                queue: {
-                    exchange: 'task',
-                    routes: [ 'command' ],
-                }
-            },
-            handler: {
-                command: msg => {
-                    if (msg) {
-                        return 'hola';
+            client = transport.client({
+                produce: {
+                    queue: {
+                        exchange: 'task',
+                        routes: [ 'command' ]
                     }
-                    throw new Error('Oops');
-                }
-            },
-            produce: {
-                queue: {
-                    exchange: 'subtask',
-                    routes: [ 'result', 'error' ]
-                }
-            }
-        });
-
-        transport.server({
-            consume: {
-                queue: {
-                    exchange: 'subtask',
-                    routes: [ 'result', 'error' ],
-                }
-            },
-            handler: {
-                result: res => {
-                    result1 = res;
                 },
-                error: err => {
-                    result2 = err;
+                getContextId: context => Job.create({ context }).then(job => String(job.id))
+            });
+
+            transport.server({
+                consume: {
+                    queue: {
+                        exchange: 'task',
+                        routes: [ 'command' ],
+                    }
+                },
+                handler: {
+                    command: msg => {
+                        if (msg) {
+                            return 'hola';
+                        }
+                        throw new Error('Oops');
+                    }
+                },
+                produce: {
+                    queue: {
+                        exchange: 'subtask',
+                        routes: [ 'result', 'error' ]
+                    }
                 }
-            },
-            getContextById: contextId => Job.find(contextId).then(job => job && job.context)
+            });
+
+            transport.server({
+                consume: {
+                    queue: {
+                        exchange: 'subtask',
+                        routes: [ 'result', 'error' ],
+                    }
+                },
+                handler: {
+                    result: (res, context) => {
+                        result1 = res;
+                        context1 = context;
+                    },
+                    error: err => {
+                        result2 = err;
+                    }
+                },
+                getContextById: contextId => Job.find(contextId).then(job => job.context)
+            });
+
+            return transport.getReady();
+
         });
 
-        return transport.getReady();
+        after(() => transport.close());
+
+        it('can produce results asyncronously', (done) => {
+            client(1, null, { context: { say: 'hello' } });
+            setTimeout(() => {
+                expect(result1).toEqual('hola');
+                done();
+            }, 300);
+        });
+
+        it('can produce errors asyncronously', (done) => {
+            client(0);
+            setTimeout(() => {
+                expect(result2.message).toEqual('Oops');
+                done();
+            }, 300);
+        });
+
+        it('should continue to work when context not found', (done) => {
+            const find = Job.find;
+            Job.find = () => Promise.resolve(null);
+            result1 = null;
+            context1 = 'something';
+            client(1, null, { context: { a: 1 } });
+            setTimeout(() => {
+                Job.find = find;
+                expect(result1).toEqual('hola');
+                expect(context1).toEqual(null);
+                done();
+            }, 300);
+        });
 
     });
 
-    after(() => transport.close());
+    context('channel about to close', () => {
 
-    it('can produce results asyncronously', (done) => {
-        client(1, null, { context: { say: 'hello' }});
-        setTimeout(() => {
-            expect(result1).toEqual('hola');
-            done();
-        }, 300);
-    });
+        it('handler will not be called with null', (done) => {
+            const transport = queueTransport({ url: rabbitUrl });
+            const get = transport.channel.get;
+            let channel;
+            transport.channel.get = function() {
+                if (channel) {
+                    return channel;
+                }
+                channel = get();
+                const consume = channel.consume;
+                channel.consume = function(queue, fn) {
+                    return consume.call(channel, queue, function() {
+                        setTimeout(() => {
+                            transport.close();
+                            if (defaultHandlerCalled) {
+                                done(new Error('Handler called unexpectedly'));
+                            } else {
+                                done();
+                            }
+                        }, 10);
+                        fn(null);
+                    });
+                };
+                return channel;
+            };
 
-    it('can produce errors asyncronously', (done) => {
-        client(0);
-        setTimeout(() => {
-            expect(result2.message).toEqual('Oops');
-            done();
-        }, 500);
+            const send = transport.client({
+                produce: {
+                    queue: {
+                        exchange: 'nothing-special',
+                        routes: [ 'default' ]
+                    }
+                }
+            });
+
+            let defaultHandlerCalled = false;
+
+            transport.server({
+                consume: {
+                    queue: {
+                        exchange: 'nothing-special',
+                        routes: [ 'default' ]
+                    }
+                },
+                handler: {
+                    default: () => defaultHandlerCalled = true
+                }
+            });
+
+            transport.getReady().then(() => send('msg'));
+        });
     });
 
 });
