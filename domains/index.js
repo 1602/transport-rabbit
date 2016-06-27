@@ -7,8 +7,9 @@ const createChannel = require('./channel');
 const createRpcFabric = require('./rpc');
 const createClientFabric = require('./client');
 const createServerFabric = require('./server');
+const createPubsubFabric = require('./pubsub');
 const queue = require('./queue');
-const debug = require('debug')('transport');
+const debug = require('debug')('rabbit:transport');
 
 module.exports = initTransport;
 
@@ -44,6 +45,10 @@ function initTransport(settings) {
     const server = createServerFabric(transport, channel);
     transport.server = spec => server.declare(spec);
 
+    const pubsub = createPubsubFabric(transport);
+    transport.broadcaster = pubsub.createBroadcaster;
+    transport.receiver = pubsub.createReceiver;
+
     connection.events.on('connected', () =>
         connection.createChannel()
             .catch(err => {
@@ -57,6 +62,7 @@ function initTransport(settings) {
     );
 
     connection.events.on('close', () => {
+        debug('emit close event');
         events.emit('close');
     });
 

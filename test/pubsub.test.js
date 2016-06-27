@@ -14,48 +14,11 @@ describe('pubsub', () => {
 
     before(() => {
         transport = queueTransport({ url: rabbitUrl });
-        produce = transport.client({
-            produce: {
-                queue: {
-                    exchange: 'broadcast-fanout',
-                    exchangeType: 'fanout'
-                }
-            }
-        });
 
-        transport.server({
-            consume: {
-                queue: {
-                    exchange: 'broadcast-fanout',
-                    exchangeType: 'fanout',
-                    routes: [ 'default' ],
-                    autogenerateQueues: true,
-                    options: {
-                        exclusive: true
-                    }
-                }
-            },
-            handler: {
-                default: res => results1.push(res)
-            }
-        });
+        produce = transport.broadcaster('broadcast-fanout');
 
-        transport.server({
-            consume: {
-                queue: {
-                    exchange: 'broadcast-fanout',
-                    exchangeType: 'fanout',
-                    routes: [ 'default' ],
-                    autogenerateQueues: true,
-                    options: {
-                        exclusive: true
-                    }
-                }
-            },
-            handler: {
-                default: res => results2.push(res)
-            }
-        });
+        transport.receiver('broadcast-fanout', res => results1.push(res));
+        transport.receiver('broadcast-fanout', res => results2.push(res));
 
         return transport.getReady();
     });
