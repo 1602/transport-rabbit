@@ -24,7 +24,8 @@ function createRpcFabric(transportLink, channelLink, settings) {
     let expirationInterval;
 
     function startExpirationInterval() {
-        expirationInterval = setInterval(() => {
+        debug('Start expiration interval each %d ms', rpcExpirationInterval);
+        return setInterval(() => {
             debug('Expire rpc');
             const now = Date.now();
             let expireMe;
@@ -36,7 +37,11 @@ function createRpcFabric(transportLink, channelLink, settings) {
         }, rpcExpirationInterval);
     }
 
-    transportLink.events.on('close', () => clearInterval(expirationInterval));
+    transportLink.events.on('close', () => {
+        if (expirationInterval) {
+            clearInterval(expirationInterval);
+        }
+    });
 
     return {
         init,
