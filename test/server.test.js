@@ -26,60 +26,38 @@ describe('server', () => {
         let result1;
         let context1;
         let result2;
+        let context2;
 
         before(() => {
             transport = queueTransport({ url: rabbitUrl });
 
-            client = transport.client({
-                produce: {
-                    queue: {
-                        exchange: 'task',
-                        routes: [ 'command' ]
-                    }
-                },
-                getContextId: context => Job.create({ context }).then(job => String(job.id))
+            client = transport.createCommandSender('task', {
+                getContextId: context => Job.create({ context })
+                    .then(job => String(job.id))
             });
 
-            transport.server({
-                consume: {
-                    queue: {
-                        exchange: 'task',
-                        routes: [ 'command' ],
-                    }
+            transport.createCommandResultRecipient('task', {
+
+                getContextById: contextId => Job.find(contextId)
+                    .then(job => job.context),
+
+                error: (err, context) => {
+                    result2 = err;
+                    context2 = context;
                 },
-                handler: {
-                    command: msg => {
-                        if (msg) {
-                            return 'hola';
-                        }
-                        throw new Error('Oops');
-                    }
-                },
-                produce: {
-                    queue: {
-                        exchange: 'subtask',
-                        routes: [ 'result', 'error' ]
-                    }
+
+                result: (res, context) => {
+                    result1 = res;
+                    context1 = context;
                 }
+
             });
 
-            transport.server({
-                consume: {
-                    queue: {
-                        exchange: 'subtask',
-                        routes: [ 'result', 'error' ],
-                    }
-                },
-                handler: {
-                    result: (res, context) => {
-                        result1 = res;
-                        context1 = context;
-                    },
-                    error: err => {
-                        result2 = err;
-                    }
-                },
-                getContextById: contextId => Job.find(contextId).then(job => job.context)
+            transport.createCommandServer('task', msg => {
+                if (msg) {
+                    return 'hola';
+                }
+                throw new Error('Oops');
             });
 
             return transport.getReady();
@@ -100,6 +78,7 @@ describe('server', () => {
             client(0);
             setTimeout(() => {
                 expect(result2.message).toEqual('Oops');
+                expect(context2).toEqual(null);
                 done();
             }, 300);
         });
