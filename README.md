@@ -1,3 +1,5 @@
+[![Coverage Status](https://coveralls.io/repos/github/1602/transport-rabbit/badge.svg?branch=master)](https://coveralls.io/github/1602/transport-rabbit?branch=master)
+
 # Rabbitmq Transport for microservices
 
 Own bicycle, yes

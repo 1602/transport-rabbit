@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "mocha --no-exit",
-    "docker-test": "./run-test.sh"
+    "docker-test": "./run-test.sh",
+    "test-coverage": "istanbul cover node_modules/.bin/_mocha -- -R list",
+    "coverage-report": "cat ./coverage/lcov.info | coveralls"
   },
   "author": "",
   "license": "ISC",
@@ -15,7 +17,6 @@
   },
   "repository": "git@github.com:1602/transport-rabbit.git",
   "devDependencies": {
-    "eslint": "^2.13.1",
     "expect": "^1.20.1",
     "mocha": "^2.5.3"
   }
