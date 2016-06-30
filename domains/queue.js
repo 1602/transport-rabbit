@@ -1,11 +1,10 @@
 'use strict';
 
-module.exports = function(transportLink, channelLink) {
+module.exports = function(channelLink) {
 
-    const transport = transportLink;
     const channel = channelLink;
 
-    return {
+    const queue = {
         assert: (queueName, options) =>
             channel.get().assertQueue(queueName, options),
 
@@ -19,8 +18,12 @@ module.exports = function(transportLink, channelLink) {
             channel.get().purgeQueue(queueName),
 
         messageCount: queueName =>
-            transport.queue.check(queueName)
+            queue.check(queueName)
                 .then(check => check.messageCount),
+
+        consumerCount: queueName =>
+            queue.check(queueName)
+                .then(check => check.consumerCount),
 
         consume: (queueName, fn) =>
             channel.get().consume(queueName, msg => {
@@ -29,5 +32,7 @@ module.exports = function(transportLink, channelLink) {
                 }
             })
     };
+
+    return queue;
 
 };
