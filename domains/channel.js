@@ -54,6 +54,7 @@ function channel() {
         channel.on('close', () => {
             debug('Channel closed.');
             events.emit('close', channelErrored);
+            currentChannel = null;
         });
 
         const prefetchCount = settings.prefetch || DEFAULT_PREFETCH;
