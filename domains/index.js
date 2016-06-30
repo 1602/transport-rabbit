@@ -35,7 +35,7 @@ function initTransport(settings) {
     transport.connection = connection;
     transport.channel = channel;
 
-    transport.queue = queue(transport, channel);
+    transport.queue = queue(channel);
 
     const rpc = createRpcFabric(transport, channel, settings);
     transport.rpc = spec => rpc.declare(spec);

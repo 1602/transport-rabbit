@@ -61,5 +61,23 @@ describe('queue', () => {
 
     });
 
+    describe('#consumerCount', () => {
+
+        it('should check consumers count for the queue', () => {
+            let consumerTag = '';
+            return transport.queue.assert('q')
+                .then(() => transport.queue.consumerCount('q'))
+                .then(consumerCount => expect(consumerCount).toBe(0))
+                .then(() => transport.queue.consume('q', () => {}))
+                .then((c) => consumerTag = c.consumerTag)
+                .then(() => transport.queue.consumerCount('q'))
+                .then(consumerCount => expect(consumerCount).toBe(1))
+                .then(() => transport.channel.cancel(consumerTag))
+                .then(() => transport.queue.consumerCount('q'))
+                .then(consumerCount => expect(consumerCount).toBe(0));
+        });
+
+    });
+
 });
 
