@@ -7,7 +7,7 @@
     "test": "mocha --no-exit",
     "docker-test": "./run-test.sh",
     "test-coverage": "istanbul cover node_modules/.bin/_mocha -- -R list",
-    "coverage-report": "cat ./coverage/lcov.info | coveralls"
+    "coverage-report": "COVERALLS_GIT_COMMIT=`git rev-parse HEAD` cat ./coverage/lcov.info | coveralls"
   },
   "author": "",
   "license": "ISC",
