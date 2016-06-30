@@ -1,21 +1,31 @@
 'use strict';
 
-module.exports = function(channelLink) {
+const debug = require('debug')('rabbit:queue');
 
-    const channel = channelLink;
+module.exports = function(channelWrapper) {
 
     const queue = {
         assert: (queueName, options) =>
-            channel.get().assertQueue(queueName, options),
+            amqpChannel().assertQueue(queueName, options),
 
         delete: (queueName, options) =>
-            channel.get().deleteQueue(queueName, options),
+            amqpChannel().deleteQueue(queueName, options),
 
         check: queueName =>
-            channel.get().checkQueue(queueName),
+            amqpChannel().checkQueue(queueName),
 
         purge: queueName =>
-            channel.get().purgeQueue(queueName),
+            amqpChannel().purgeQueue(queueName),
+
+        bind: (queueName, exchangeName, route, options) => {
+            debug(
+                'bind "%s" to "%s" exchange using "%s" route',
+                queueName,
+                exchangeName,
+                route);
+
+            return amqpChannel().bindQueue(queueName, exchangeName, route, options);
+        },
 
         messageCount: queueName =>
             queue.check(queueName)
@@ -26,7 +36,7 @@ module.exports = function(channelLink) {
                 .then(check => check.consumerCount),
 
         consume: (queueName, fn) =>
-            channel.get().consume(queueName, msg => {
+            amqpChannel().consume(queueName, msg => {
                 if (msg !== null) {
                     fn(msg);
                 }
@@ -34,5 +44,9 @@ module.exports = function(channelLink) {
     };
 
     return queue;
+
+    function amqpChannel() {
+        return channelWrapper.get();
+    }
 
 };

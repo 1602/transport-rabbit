@@ -4,15 +4,16 @@ module.exports = channel;
 
 const DEFAULT_PREFETCH = 1;
 
+const createQueueWrapper = require('./queue');
 const EventEmitter = require('events');
 
 const debug = require('debug')('rabbit:channel');
 
 function channel() {
     const events = new EventEmitter();
-    let currentChannel;
+    let currentChannel = null;
 
-    return {
+    const channelWrapper = {
         events,
         bind,
         cancel,
@@ -24,10 +25,20 @@ function channel() {
         }
     };
 
+    const queueWrapper = createQueueWrapper(channelWrapper);
+
+    return channelWrapper;
+
     function cancel(consumerTag) {
         return currentChannel.cancel(consumerTag);
     }
 
+    /**
+     * Internal transport to queue bindings
+     * @param channel {AMQPChannel(amqplib)} - amqp channel
+     * @param queues {Array} - queue descriptors
+     * @param settings {Object} - { prefetch: Number }
+     */
     function bind(channel, queues, settings) {
 
         currentChannel = channel;
@@ -86,19 +97,13 @@ function channel() {
 
                 q.queueNames = {};
 
-                return ch.assertQueue(
+                return queueWrapper.assert(
                     queueName,
                     q.options
                 )
                     .then(asserted => {
                         q.queueNames[route] = asserted.queue;
-                        debug(
-                            'bind "%s" to "%s" exchange using "%s" route',
-                            asserted.queue,
-                            q.exchange,
-                            route);
-
-                        return ch.bindQueue(
+                        return queueWrapper.bind(
                             asserted.queue,
                             q.exchange,
                             route,
