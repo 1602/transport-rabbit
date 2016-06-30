@@ -15,6 +15,7 @@ function channel() {
     return {
         events,
         bind,
+        cancel,
         get: () => {
             if (!currentChannel) {
                 throw new Error('Client is not connected to channel');
@@ -22,6 +23,10 @@ function channel() {
             return currentChannel;
         }
     };
+
+    function cancel(consumerTag) {
+        return currentChannel.cancel(consumerTag);
+    }
 
     function bind(channel, queues, settings) {
 
