@@ -13,24 +13,37 @@ function channel() {
     const events = new EventEmitter();
     let currentChannel = null;
 
-    const channelWrapper = {
+    const channelWrapper = Object.assign(standardChannelInterface(), {
         events,
         bind,
-        cancel,
-        get: () => {
-            if (!currentChannel) {
-                throw new Error('Client is not connected to channel');
-            }
-            return currentChannel;
-        }
-    };
+        get: get
+    });
 
     const queueWrapper = createQueueWrapper(channelWrapper);
 
     return channelWrapper;
 
-    function cancel(consumerTag) {
-        return currentChannel.cancel(consumerTag);
+    function standardChannelInterface() {
+        const slice = Array.prototype.slice;
+        return [
+            'publish', 'sendToQueue', 'consume',
+            'cancel', 'get', 'ack', 'ackAll',
+            'nack', 'nackAll', 'reject', 'prefetch', 'recover'
+        ].reduce((wrap, name) => {
+            wrap[name] = function() {
+                return get()[name].apply(
+                    currentChannel,
+                    slice.call(arguments));
+            };
+            return wrap;
+        }, {});
+    }
+
+    function get() {
+        if (!currentChannel) {
+            throw new Error('Client is not connected to channel');
+        }
+        return currentChannel;
     }
 
     /**
@@ -67,6 +80,11 @@ function channel() {
             });
     }
 
+    /**
+     * Assert known queues
+     * @param queues {Array} - array of queue specs:
+     *  - {exchange, exchangeType, autogenerateQueues, routes, options}
+     */
     function assertQueues(queues) {
         if (!queues.length) {
             return;
