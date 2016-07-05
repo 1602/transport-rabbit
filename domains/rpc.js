@@ -60,32 +60,21 @@ function createRpcFabric(transportLink, channelLink, settings) {
         const requestQueue = getQueueName(spec.produce.queue);
 
         return function send(payload) {
-
-            const correlationId = generateId();
-            const deferred = Promise.defer();
-
-            const responseHandler = {
-                correlationId,
-                deferred,
-                startedAt: Date.now()
-            };
-
-            if (settings.rpcTimeout) {
-                responseHandler.expireAt = responseHandler.startedAt + settings.rpcTimeout;
-                awaitingExpiration.push(responseHandler);
-            }
-
-            awaitingResponseHandlers[correlationId] = responseHandler;
-
+            const resp = addResponseHandler();
 
             debug('Sending msg to queue "%s"', requestQueue);
 
+            // TODO handle false return of Channel#publish (wait for 'drain')
+            // Channel#publish mimics the stream.Writable interface in its return
+            // value; it will return false if the channel's write buffer is
+            // 'full', and true otherwise. If it returns false, it will emit a
+            // 'drain' event at some later time.
             channel.get().publish(
                 exchange,
                 route,
                 new Buffer(JSON.stringify({ payload })),
                 {
-                    correlationId,
+                    correlationId: resp.correlationId,
                     replyTo: [
                         rpcCallbackQueues[requestQueue].reply.queue,
                         rpcCallbackQueues[requestQueue].error.queue
@@ -93,7 +82,31 @@ function createRpcFabric(transportLink, channelLink, settings) {
                 }
             );
 
-            return deferred.promise;
+            return resp.promisedResult;
+
+        };
+    }
+
+    function addResponseHandler() {
+        const correlationId = generateId();
+        const deferred = Promise.defer();
+
+        const responseHandler = {
+            correlationId,
+            deferred,
+            startedAt: Date.now()
+        };
+
+        if (settings.rpcTimeout) {
+            responseHandler.expireAt = responseHandler.startedAt + settings.rpcTimeout;
+            awaitingExpiration.push(responseHandler);
+        }
+
+        awaitingResponseHandlers[correlationId] = responseHandler;
+
+        return {
+            promisedResult: deferred.promise,
+            correlationId
         };
     }
 

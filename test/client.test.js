@@ -75,8 +75,6 @@ describe('client', () => {
             });
     });
 
-    it('should live more than 1 second', done => setTimeout(done, 1200));
-
 });
 
 // mimic ORM
