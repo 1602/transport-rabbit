@@ -26,7 +26,7 @@ function createServerFabric(transportLink, channelLink) {
                     const queueName = d.consume.queue.queueNames[route];
 
                     return transport.queue.consume(queueName, msg => {
-                        debug(`Received ${msg && msg.properties.type || 'msg'}  to ${queueName}`);
+                        debug(`Received ${msg && msg.properties.type || 'msg'} to ${queueName}`);
                         execJob(d.handler[route], msg, d.produce && d.produce.queue.exchange, d.getContextById);
                     })
                         .then(() => debug('Ready to consume queue %s (%s)',
@@ -49,10 +49,17 @@ function createServerFabric(transportLink, channelLink) {
     function execJob(handler, msg, respondTo, getContextById) {
         const data = msg && JSON.parse(msg.content.toString());
         const ch = channel.get();
+        let msgHandled = false;
+        const accept = () => safeAck(true);
+        const reject = () => safeAck(false);
 
         Promise.resolve(getContext())
             .catch(err => debug('Error while retrieving context', err.stack))
-            .then(context => handler(data && data.payload, context))
+            .then(context => handler(data && data.payload, {
+                context,
+                accept,
+                reject
+            }))
             .then(payload => reply('result', payload))
 
             // TODO add external presenter for error
@@ -62,9 +69,31 @@ function createServerFabric(transportLink, channelLink) {
                 details: error.details
             }));
 
+        function safeAck(isAck) {
+            if (msgHandled) {
+                return;
+            }
+            msgHandled = true;
+
+            if (isAck) {
+                debug('ack');
+                return ch.ack(msg);
+            }
+
+            debug('nack');
+            return ch.nack(msg);
+        }
+
         function reply(type, payload) {
 
-            ch.ack(msg);
+            if (!msgHandled) {
+                debug('implicit ack');
+                ch.ack(msg);
+            }
+
+            if (typeof payload === 'undefined') {
+                return;
+            }
 
             const replyTo = parseReplyTo(type, msg && msg.properties.replyTo);
             const correlationId = msg && msg.properties.correlationId;

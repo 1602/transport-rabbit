@@ -1,12 +1,12 @@
 {
   "name": "transport-rabbit",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Transport layer domain for rabbit",
   "main": "index.js",
   "scripts": {
-    "test": "mocha --no-exit",
+    "test": "mocha --no-exit -R spec",
     "docker-test": "./run-test.sh",
-    "test-coverage": "istanbul cover node_modules/.bin/_mocha -- -R list",
+    "test-coverage": "istanbul cover node_modules/.bin/_mocha -- -R landing",
     "coverage-report": "export COVERALLS_GIT_COMMIT=`git rev-parse HEAD` && cat ./coverage/lcov.info | coveralls"
   },
   "author": "",

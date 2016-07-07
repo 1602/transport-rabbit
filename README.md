@@ -7,7 +7,7 @@ Own bicycle, yes
 # Tests
 
 ```
-npm run docker-tests
+npm run docker-test
 ```
 
 check [./test/README.md](./test/README.md) for more details on testing

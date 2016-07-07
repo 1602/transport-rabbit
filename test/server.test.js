@@ -41,14 +41,14 @@ describe('server', () => {
                 getContextById: contextId => Job.find(contextId)
                     .then(job => job.context),
 
-                error: (err, context) => {
+                error: (err, job) => {
                     result2 = err;
-                    context2 = context;
+                    context2 = job.context;
                 },
 
-                result: (res, context) => {
+                result: (res, job) => {
                     result1 = res;
-                    context1 = context;
+                    context1 = job.context;
                 }
 
             });
@@ -57,6 +57,7 @@ describe('server', () => {
                 if (msg) {
                     return 'hola';
                 }
+
                 throw new Error('Oops');
             });
 
@@ -77,6 +78,7 @@ describe('server', () => {
         it('can produce errors asyncronously', (done) => {
             client(0);
             setTimeout(() => {
+                console.log(result2.stack);
                 expect(result2.message).toEqual('Oops');
                 expect(context2).toEqual(null);
                 done();
@@ -151,6 +153,47 @@ describe('server', () => {
             });
 
             transport.getReady().then(() => send('msg'));
+        });
+    });
+
+    describe('ack', () => {
+
+        let transport = null;
+        let send;
+        let handler;
+
+        beforeEach(() => {
+            transport = queueTransport({ url: rabbitUrl });
+            send = transport.createCommandSender('task-donotcare');
+
+            transport.createCommandServer('task-donotcare', function() {
+                return handler.apply(null, [].slice.call(arguments));
+            });
+
+            return transport.getReady();
+        });
+
+        afterEach(() => {
+            return transport.close();
+        });
+
+        it('should allow to nack', done => {
+            let rejectedOnce = false;
+            handler = (param, job) => {
+                expect(param).toBe('hello');
+                expect(job.context).toBe(null);
+                expect(typeof job.accept).toBe('function');
+                expect(typeof job.reject).toBe('function');
+                if (rejectedOnce) {
+                    job.accept();
+                    expect(job.accept).toNotThrow();
+                    done();
+                    return;
+                }
+                rejectedOnce = true;
+                job.reject();
+            };
+            send('hello');
         });
     });
 
