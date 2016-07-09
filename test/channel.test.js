@@ -26,17 +26,14 @@ describe('channel', () => {
                     url: rabbitUrl,
                     prefetch: 1,
                     channelConfig: {
+                        default: {
+                            prefetch: { count: 2 }
+                        },
                         alpha: {
-                            prefetch: {
-                                count: 1,
-                                global: true
-                            }
+                            prefetch: { global: true }
                         },
                         bravo: {
-                            prefetch: {
-                                count: 1,
-                                global: true
-                            }
+                            prefetch: { count: 1, global: true }
                         }
                     }
                 });
@@ -56,20 +53,12 @@ describe('channel', () => {
                     });
                 }
 
-                transport.createCommandServer('task', (msg, job) => {
-                    bravoHello = msg;
-                    setTimeout(job.accept, 150);
-                }, {
-                    channel: 'bravo',
-                    produceResults: false
-                });
-
                 return transport.getReady();
             });
 
             after(() => transport.close());
 
-            it.only('should be possible to consume multiple channels', () => {
+            it('should be possible to consume multiple channels', () => {
                 client('hello alpha');
                 client('hello bravo');
                 return new Promise(resolve => setTimeout(resolve, 100))
@@ -81,6 +70,22 @@ describe('channel', () => {
                     .then(() => transport.close());
 
             });
+
+            it('defaults global flag to false', () => {
+                const settings = transport.getChannel('default').getSettings();
+                expect(settings.prefetchIsGlobal).toBe(false);
+            });
+
+            it('defaults prefetch count to 1', () => {
+                const settings = transport.getChannel('alpha').getSettings();
+                expect(settings.prefetchCount).toBe(1);
+            });
+
+            it('allows to configure global prefetch', () => {
+                const settings = transport.getChannel('alpha').getSettings();
+                expect(settings.prefetchIsGlobal).toBe(true);
+            });
+
         });
     });
 

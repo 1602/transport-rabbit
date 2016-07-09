@@ -14,6 +14,10 @@ function channel(channelName) {
     const events = new EventEmitter();
     let amqpChannel = null;
 
+    let prefetchCount = DEFAULT_PREFETCH;
+    let prefetchIsGlobal = false;
+
+
     const channelWrapper = Object.assign(standardChannelInterface(), {
         events,
 
@@ -26,6 +30,8 @@ function channel(channelName) {
 
             return amqpChannel.bindQueue(queueName, exchangeName, route, options);
         },
+
+        getSettings: () => ({ prefetchCount, prefetchIsGlobal }),
 
         bind,
         assertOpenChannel,
@@ -95,8 +101,9 @@ function channel(channelName) {
             amqpChannel = null;
         });
 
-        let prefetchCount = settings.prefetch || DEFAULT_PREFETCH;
-        let prefetchIsGlobal = false;
+        if (settings.prefetch) {
+            prefetchCount = settings.prefetch;
+        }
 
         if (settings.channelConfig && settings.channelConfig[channelName]) {
             const prefetchConfig = settings.channelConfig[channelName].prefetch;
