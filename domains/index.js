@@ -16,7 +16,7 @@ module.exports = initTransport;
 
 function initTransport(settings) {
 
-    const queues = [];
+    const channels = Object.create(null);
 
     const EventEmitter = require('events');
     const events = new EventEmitter();
@@ -26,24 +26,32 @@ function initTransport(settings) {
         getReady: () => new Promise(resolve => events.on('ready', resolve)),
         close: () => connection.close(),
         addQueue,
-        isConnected: () => connection.isConnected()
+        getChannel: name => getChannel(name).wrap,
+        getChannelQueues: name => getChannel(name).queues,
+        isConnected: () => connection.isConnected(),
+        assertedQueues: Object.create(null),
     };
 
+    function getChannel(name) {
+        const channelName = name || 'default';
+        const channel = channels[channelName];
+        assert(channel, `Channel ${channelName} does not exist`);
+        return channel;
+    }
+
     const connection = createConnection(settings);
-    const channel = createChannel();
 
     transport.connection = connection;
-    transport.channel = channel;
+    addChannel('default');
+    transport.queue = queue(transport, 'default');
 
-    transport.queue = queue(channel);
-
-    const rpc = createRpcFabric(transport, channel, settings);
+    const rpc = createRpcFabric(transport, settings);
     transport.rpc = spec => rpc.declare(spec);
 
-    const client = createClientFabric(transport, channel);
+    const client = createClientFabric(transport);
     transport.client = spec => client.declare(spec);
 
-    const server = createServerFabric(transport, channel);
+    const server = createServerFabric(transport);
     transport.server = spec => server.declare(spec);
 
     const pubsub = createPubsubFabric(transport);
@@ -55,43 +63,65 @@ function initTransport(settings) {
     transport.createCommandServer = command.createCommandServer;
     transport.createCommandResultRecipient = command.createCommandResultRecipient;
 
-    connection.events.on('connected', () =>
-        connection.createChannel()
+    connection.events.on('connected', () => {
+        Promise.all(Object.keys(channels)
+            .map(name => {
+                debug('init "%s" channel', name);
+                const chan = transport.getChannel(name);
+                const queues = transport.getChannelQueues(name);
+                return connection.createChannel()
+                    // .catch(err => {
+                        // might happen if more than MAX_CHANNELS channels created
+                        // 65536 by default in rabbit version 3
+                        // debug('Error while creating channel. Closing connection.', err);
+                        // connection.close();
+                    // })
+                    .then(ch => chan.bind(ch, queues, settings));
+            }))
+            .then(() => setupChannels())
+            .then(() => transport.events.emit('ready'))
             .catch(err => {
-                // might happen if more than MAX_CHANNELS channels created
-                // 65536 by default in rabbit version 3
-                debug('Error while creating channel. Closing connection.', err);
-                connection.close();
-            })
-            .then(ch => channel.bind(ch, queues, settings))
-            .catch(err => transport.events.emit('error', err))
-    );
+                debug('error during init', err.stack);
+                transport.events.emit('error', err);
+            });
+    });
 
     connection.events.on('close', () => {
         debug('emit close event');
         events.emit('close');
     });
 
-    channel.events.on('close', channelErrored => {
-        if (channelErrored && !connection.isDisconnected()) {
-            connection.forceClose();
-        }
-    });
-
-    channel.events.on('ready', () => {
-        setupChannel().then(() => transport.events.emit('ready'));
-    });
+    // channel.events.on('close', channelErrored => {
+    //     if (channelErrored && !connection.isDisconnected()) {
+    //         connection.forceClose();
+    //     }
+    // });
 
     return transport;
 
-    function setupChannel() {
+    function setupChannels() {
         return Promise.resolve()
-            .then(() => Promise.all([server.init(), rpc.init()]));
+            .then(() => Promise.all([
+                server.init(),
+                rpc.init()
+            ]));
     }
 
     function addQueue(queueDescriptor) {
-        assert(isValidQueueDescriptor(queueDescriptor), 'Invalid queue descriptor (consume)');
-        queues.push(queueDescriptor.queue);
+        assert(isValidQueueDescriptor(queueDescriptor),
+            'Invalid queue descriptor (consume)');
+
+        addChannel(queueDescriptor.channel)
+            .queues.push(queueDescriptor.queue);
+    }
+
+    function addChannel(channelName) {
+        channelName = channelName || 'default';
+        channels[channelName] = channels[channelName] || {
+            queues: [],
+            wrap: createChannel(channelName)
+        };
+        return channels[channelName];
     }
 
     function isValidQueueDescriptor(queueDescriptor) {

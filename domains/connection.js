@@ -31,7 +31,9 @@ function init(settings) {
         isDisconnected,
         createChannel,
         close,
-        forceClose: () => closeConnection()
+        get _connection() {
+            return latestConnection;
+        }
     };
 
     function isDisconnected() {
@@ -61,22 +63,29 @@ function init(settings) {
     }
 
     function connect(settings) {
+        debug('connecting to %s', settings.url);
         reconnectTimeout = settings.reconnectTimeout || DEFAULT_RECONNECT_TIMEOUT;
         return amqplib.connect(settings.url)
             .catch(err => {
                 if (reconnect) {
-                    debug('Error while connecting, will try to reconnect', err);
+                    debug('error while connecting, will try to reconnect', err);
 
                     return new Promise(r => setTimeout(() => r(connect(settings)), reconnectTimeout));
                 }
+                debug('connection error', err);
 
                 throw err;
+            })
+            .then(conn => {
+                debug('connected');
+                return conn;
             });
     }
 
     function setupConnection(connection) {
         return Promise.resolve(connection)
             .then(connection => {
+                debug('setting up connection');
                 connection.on('error', err => {
                     debug('Connection error', err);
                 });
@@ -92,6 +101,7 @@ function init(settings) {
                 });
                 latestConnection = connection;
                 state = 'connected';
+                debug('emit connected event');
                 events.emit('connected');
                 return connection;
             });

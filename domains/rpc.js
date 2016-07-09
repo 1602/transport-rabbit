@@ -10,10 +10,9 @@ const getQueueName = helpers.getQueueName;
 
 const DEFAULT_RPC_EXPIRATION_INTERVAL = 1000;
 
-function createRpcFabric(transportLink, channelLink, settings) {
+function createRpcFabric(transportLink, settings) {
 
     const transport = transportLink;
-    const channel = channelLink;
     const descriptors = [];
 
     const rpcCallbackQueues = Object.create(null);
@@ -37,7 +36,7 @@ function createRpcFabric(transportLink, channelLink, settings) {
         }, rpcExpirationInterval);
     }
 
-    transportLink.events.on('close', () => {
+    transport.events.on('close', () => {
         if (expirationInterval) {
             clearInterval(expirationInterval);
         }
@@ -51,7 +50,7 @@ function createRpcFabric(transportLink, channelLink, settings) {
     function declare(spec) {
         expirationInterval = expirationInterval || startExpirationInterval();
         assert(spec.produce, 'Client must have queue to produce msg to specified');
-        transportLink.addQueue(spec.produce);
+        transport.addQueue(spec.produce);
 
         descriptors.push(spec);
 
@@ -69,18 +68,19 @@ function createRpcFabric(transportLink, channelLink, settings) {
             // value; it will return false if the channel's write buffer is
             // 'full', and true otherwise. If it returns false, it will emit a
             // 'drain' event at some later time.
-            channel.get().publish(
-                exchange,
-                route,
-                new Buffer(JSON.stringify({ payload })),
-                {
-                    correlationId: resp.correlationId,
-                    replyTo: [
-                        rpcCallbackQueues[requestQueue].reply.queue,
-                        rpcCallbackQueues[requestQueue].error.queue
-                    ].join('|')
-                }
-            );
+            transport
+                .getChannel(spec.produce.channel)
+                .publish(
+                    exchange,
+                    route,
+                    new Buffer(JSON.stringify({ payload })), {
+                        correlationId: resp.correlationId,
+                        replyTo: [
+                            rpcCallbackQueues[requestQueue].reply.queue,
+                            rpcCallbackQueues[requestQueue].error.queue
+                        ].join('|'),
+                        expiration: String(rpcExpirationInterval)
+                    });
 
             return resp.promisedResult;
 
@@ -115,10 +115,11 @@ function createRpcFabric(transportLink, channelLink, settings) {
         return Promise.all(descriptors
             .map(d => {
                 const requestQueue = getQueueName(d.produce.queue);
+                const ch = transport.getChannel(d.produce.channel);
 
                 return Promise.all([
-                    transport.queue.assert('', { exclusive: true }),
-                    transport.queue.assert('', { exclusive: true })
+                    ch.assertQueue('', { exclusive: true }),
+                    ch.assertQueue('', { exclusive: true })
                 ])
                     .then(queues => {
                         const reply = queues[0];
@@ -127,23 +128,22 @@ function createRpcFabric(transportLink, channelLink, settings) {
                         rpcCallbackQueues[requestQueue] = { reply, error };
 
                         return Promise.all([
-                            consume(reply.queue, 'resolve'),
-                            consume(error.queue, 'reject')
+                            consume(ch, reply.queue, 'resolve'),
+                            consume(ch, error.queue, 'reject')
                         ]);
 
                     });
             }));
 
-        function consume(queueName, action) {
-            return transportLink.queue.consume(queueName, msg => {
+        function consume(channel, queueName, action) {
+            return channel.consume(queueName, msg => {
                 debug('Received', msg && msg.properties.type, 'to', queueName);
-                channel.get().ack(msg);
                 const data = JSON.parse(msg.content.toString());
                 const corrId = msg && msg.properties.correlationId;
                 awaitingResponseHandlers[corrId].deferred[action](data.payload);
                 delete awaitingResponseHandlers[corrId];
                 awaitingExpiration.splice(awaitingExpiration.indexOf(awaitingResponseHandlers[corrId]), 1);
-            });
+            }, { noAck: true });
         }
     }
 

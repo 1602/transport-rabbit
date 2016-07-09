@@ -5,10 +5,9 @@ module.exports = createServerFabric;
 const assert = require('assert');
 const debug = require('debug')('rabbit:server');
 
-function createServerFabric(transportLink, channelLink) {
+function createServerFabric(transportLink) {
 
     const transport = transportLink;
-    const channel = channelLink;
 
     const descriptors = [];
 
@@ -21,16 +20,29 @@ function createServerFabric(transportLink, channelLink) {
 
         return Promise.all(descriptors
             .map(d => {
-                debug('Will consume', d.consume.queue.exchange, d.consume.queue.routes);
+                debug('will attempt to consume %s{%s}',
+                    d.consume.queue.exchange,
+                    d.consume.queue.routes);
+
                 return Promise.all(d.consume.queue.routes.map(route => {
                     const queueName = d.consume.queue.queueNames[route];
 
-                    return transport.queue.consume(queueName, msg => {
-                        debug(`Received ${msg && msg.properties.type || 'msg'} to ${queueName}`);
-                        execJob(d.handler[route], msg, d.produce && d.produce.queue.exchange, d.getContextById);
-                    })
-                        .then(() => debug('Ready to consume queue %s (%s)',
-                                                queueName, route));
+                    const chan = transport.getChannel(d.consume.channel);
+
+                    chan
+                        .consume(queueName, msg => {
+                            debug(`received ${msg && msg.properties.type || 'msg'} to ${queueName} via ${d.consume.channel || 'default'}`);
+                            execJob(
+                                chan,
+                                d.handler[route],
+                                msg,
+                                d.produce && d.produce.queue.exchange,
+                                d.getContextById,
+                                d.consume.options
+                            );
+                        }, d.consume.options)
+                            .then(() => debug('ready to consume queue %s (%s) via %s',
+                                  queueName, route, d.consume.channel || 'default'));
                 }));
             }));
     }
@@ -46,10 +58,10 @@ function createServerFabric(transportLink, channelLink) {
         }
     }
 
-    function execJob(handler, msg, respondTo, getContextById) {
+    function execJob(channel, handler, msg, respondTo, getContextById, consOpts) {
         const data = msg && JSON.parse(msg.content.toString());
         const ch = channel.get();
-        let msgHandled = false;
+        let msgHandled = consOpts && consOpts.noAck === true;
         const accept = () => safeAck(true);
         const reject = () => safeAck(false);
 
@@ -86,14 +98,15 @@ function createServerFabric(transportLink, channelLink) {
 
         function reply(type, payload) {
 
+            if (typeof payload === 'undefined') {
+                debug('payload is undefined, skip ack and not reply to %s', type);
+                return;
+            }
+
             if (!msgHandled) {
                 debug('implicit ack');
                 ch.ack(msg);
-            }
-
-            if (typeof payload === 'undefined') {
-                return;
-            }
+            } else debug('already handled', consOpts);
 
             const replyTo = parseReplyTo(type, msg && msg.properties.replyTo);
             const correlationId = msg && msg.properties.correlationId;

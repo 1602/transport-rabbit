@@ -6,10 +6,9 @@ const generateId = require('./helpers').generateId;
 
 module.exports = createClientFabric;
 
-function createClientFabric(transportLink, channelLink) {
+function createClientFabric(transportLink) {
 
     const transport = transportLink;
-    const channel = channelLink;
 
     const descriptors = [];
 
@@ -27,13 +26,15 @@ function createClientFabric(transportLink, channelLink) {
         const route = spec.produce.queue.routes && spec.produce.queue.routes[0];
 
         return function send(payload, toRoute, opts) {
-            const latestChannel = channel.get();
+            const chan = transport.getChannel(spec.produce.channel);
+
+            chan.assertOpenChannel();
 
             return Promise.resolve(getCorrelationId(opts && opts.context))
                 .then(correlationId => {
                     debug('Sending msg to route', toRoute || route, 'corrId =', correlationId);
 
-                    return latestChannel.publish(
+                    return chan.publish(
                         exchange,
                         toRoute || route,
                         new Buffer(JSON.stringify({ payload })),

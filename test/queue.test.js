@@ -72,7 +72,7 @@ describe('queue', () => {
                 .then((c) => consumerTag = c.consumerTag)
                 .then(() => transport.queue.consumerCount('q'))
                 .then(consumerCount => expect(consumerCount).toBe(1))
-                .then(() => transport.channel.cancel(consumerTag))
+                .then(() => transport.getChannel('default').cancel(consumerTag))
                 .then(() => transport.queue.consumerCount('q'))
                 .then(consumerCount => expect(consumerCount).toBe(0));
         });

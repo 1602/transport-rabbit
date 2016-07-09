@@ -93,7 +93,7 @@ function calculateNonRecursive(n) {
     assert(isNatural(n), 'n is not a natural number');
 
     if (n >= 500) {
-        return new Promise(resolve => setTimeout(resolve, 300));
+        return new Promise(resolve => setTimeout(() => resolve(100000), 300));
     }
 
     let a = 1, b = 1, next;

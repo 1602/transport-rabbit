@@ -2,7 +2,7 @@
 
 const expect = require('expect');
 const queueTransport = require('../');
-const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.101:5672';
+const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.100:5672';
 
 /* eslint max-nested-callbacks: [2, 6] */
 
@@ -40,8 +40,7 @@ describe('connection', () => {
         });
 
         transport.events.once('ready', () => {
-            transport.queue.check('not-existing-queue')
-                .catch(() => {});
+            transport.connection._connection.close();
             transport.events.once('ready', () => done());
         });
     });
@@ -87,7 +86,7 @@ describe('connection', () => {
 
     });
 
-    it('should close connection when channel can not be opened', done => {
+    it.skip('should close connection when channel can not be opened', done => {
         transport = queueTransport({ url: rabbitUrl });
         const close = transport.connection.close;
         const createChannel = transport.connection.createChannel;
@@ -101,6 +100,19 @@ describe('connection', () => {
             transport = null;
             done();
         };
+    });
+
+    it('should expose errors thrown during init', done => {
+        transport = queueTransport({ url: rabbitUrl });
+        const createChannel = transport.connection.createChannel;
+
+        transport.connection.createChannel = () =>
+            Promise.reject(new Error('Too many channels opened'));
+        transport.events.on('error', err => {
+            expect(err.message).toBe('Too many channels opened');
+            transport.connection.createChannel = createChannel;
+            done();
+        });
     });
 
 });
