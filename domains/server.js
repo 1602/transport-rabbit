@@ -99,7 +99,7 @@ function createServerFabric(transportLink) {
         function reply(type, payload) {
 
             if (typeof payload === 'undefined') {
-                debug('payload is undefined, skip ack and not reply to %s', type);
+                debug('payload is undefined, skip ack and not reply with %s', type);
                 return;
             }
 

@@ -95,9 +95,23 @@ function channel(channelName) {
             amqpChannel = null;
         });
 
-        const prefetchCount = settings.prefetch || DEFAULT_PREFETCH;
+        let prefetchCount = settings.prefetch || DEFAULT_PREFETCH;
+        let prefetchIsGlobal = false;
 
-        return channel.prefetch(prefetchCount, true)
+        if (settings.channelConfig && settings.channelConfig[channelName]) {
+            const prefetchConfig = settings.channelConfig[channelName].prefetch;
+            if (prefetchConfig.global) {
+                prefetchIsGlobal = true;
+            }
+
+            if ('undefined' !== typeof prefetchConfig.count) {
+                prefetchCount = prefetchConfig.count;
+            }
+        }
+
+        debug('setting prefetch to %d, global=%s', prefetchCount, prefetchIsGlobal);
+
+        return channel.prefetch(prefetchCount, prefetchIsGlobal)
             .then(() => assertQueues(queues))
             .then(() => {
                 debug('channel %s ready', channelName);

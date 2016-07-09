@@ -14,42 +14,74 @@ describe('channel', () => {
 
     it('should allow to take care of stream throughput');
 
-    it('should be possible to consume multiple channels', () => {
-        const transport = queueTransport({ url: rabbitUrl, prefetch: 1 });
+    describe('#prefetch', () => {
 
-        const client = transport.createCommandSender('task');
+        context('global prefetch', () => {
 
-        let alphaHello = '', bravoHello = '';
+            let transport, client;
+            let alphaHello = '', bravoHello = '';
 
-        transport.createCommandServer('task', function(msg, job) {
-            alphaHello = msg;
-            setTimeout(job.accept, 150);
-        }, {
-            channel: 'alpha',
-            produceResults: false
-        });
+            before(() => {
+                transport = queueTransport({
+                    url: rabbitUrl,
+                    prefetch: 1,
+                    channelConfig: {
+                        alpha: {
+                            prefetch: {
+                                count: 1,
+                                global: true
+                            }
+                        },
+                        bravo: {
+                            prefetch: {
+                                count: 1,
+                                global: true
+                            }
+                        }
+                    }
+                });
 
-        transport.createCommandServer('task', function(msg, job) {
-            bravoHello = msg;
-            setTimeout(job.accept, 150);
-        }, {
-            channel: 'bravo',
-            produceResults: false
-        });
+                client = transport.createCommandSender('task');
 
-        return transport.getReady()
-            .then(() => {
+                startServer('alpha', msg => alphaHello = msg);
+                startServer('bravo', msg => bravoHello = msg);
+
+                function startServer(channel, fn) {
+                    transport.createCommandServer('task', (msg, job) => {
+                        fn(msg);
+                        setTimeout(job.accept, 150);
+                    }, {
+                        channel,
+                        produceResults: false
+                    });
+                }
+
+                transport.createCommandServer('task', (msg, job) => {
+                    bravoHello = msg;
+                    setTimeout(job.accept, 150);
+                }, {
+                    channel: 'bravo',
+                    produceResults: false
+                });
+
+                return transport.getReady();
+            });
+
+            after(() => transport.close());
+
+            it.only('should be possible to consume multiple channels', () => {
                 client('hello alpha');
                 client('hello bravo');
-                return new Promise(resolve => setTimeout(resolve, 100));
-            })
-            .then(() => {
-                expect(alphaHello).toBe('hello alpha');
-                expect(bravoHello).toBe('hello bravo');
-                return new Promise(resolve => setTimeout(resolve, 300));
-            })
-            .then(() => transport.close());
+                return new Promise(resolve => setTimeout(resolve, 100))
+                    .then(() => {
+                        expect(alphaHello).toBe('hello alpha');
+                        expect(bravoHello).toBe('hello bravo');
+                        return new Promise(resolve => setTimeout(resolve, 300));
+                    })
+                    .then(() => transport.close());
 
+            });
+        });
     });
 
 });
