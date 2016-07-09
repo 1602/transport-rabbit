@@ -53,22 +53,20 @@ describe('channel', () => {
                     });
                 }
 
-                return transport.getReady();
+                return transport.getReady()
+                    .then(() => {
+                        client('hello alpha');
+                        client('hello bravo');
+                        return new Promise(resolve => setTimeout(resolve, 100));
+                    });
             });
 
             after(() => transport.close());
 
-            it('should be possible to consume multiple channels', () => {
-                client('hello alpha');
-                client('hello bravo');
-                return new Promise(resolve => setTimeout(resolve, 100))
-                    .then(() => {
-                        expect(alphaHello).toBe('hello alpha');
-                        expect(bravoHello).toBe('hello bravo');
-                        return new Promise(resolve => setTimeout(resolve, 300));
-                    })
-                    .then(() => transport.close());
-
+            it('should be possible to consume multiple channels', done => {
+                expect(alphaHello).toBe('hello alpha');
+                expect(bravoHello).toBe('hello bravo');
+                setTimeout(done, 300);
             });
 
             it('defaults global flag to false', () => {
