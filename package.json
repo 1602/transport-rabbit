@@ -9,8 +9,8 @@
     "test-coverage": "istanbul cover node_modules/.bin/_mocha -- -R landing",
     "coverage-report": "export COVERALLS_GIT_COMMIT=`git rev-parse HEAD` && cat ./coverage/lcov.info | coveralls"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "Anatoliy Chakkaev",
+  "license": "MIT",
   "dependencies": {
     "amqplib": "=0.4.1",
     "debug": "^2.2.0"

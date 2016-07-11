@@ -61,8 +61,6 @@ describe('channel', () => {
                     });
             });
 
-            after(() => transport.close());
-
             it('should be possible to consume multiple channels', done => {
                 expect(alphaHello).toBe('hello alpha');
                 expect(bravoHello).toBe('hello bravo');
@@ -83,6 +81,8 @@ describe('channel', () => {
                 const settings = transport.getChannel('alpha').getSettings();
                 expect(settings.prefetchIsGlobal).toBe(true);
             });
+
+            after(() => transport.close());
 
         });
     });
