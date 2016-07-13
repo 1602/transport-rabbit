@@ -4,4 +4,4 @@ machine:
   services:
     - rabbitmq-server
   environment:
-    - 'RABBIT_URL=amqp://localhost:5672'
+    RABBIT_URL: amqp://localhost:5672
