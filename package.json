@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "mocha --no-exit -R spec",
+    "start-test-rabbit": "docker run -d -p 5672:5672 --name test-rabbit-server --hostname test-rabbit-server rabbitmq:3.6-management",
     "docker-test": "./run-test.sh",
     "test-coverage": "istanbul cover node_modules/.bin/_mocha -- -R landing",
     "coverage-report": "export COVERALLS_GIT_COMMIT=`git rev-parse HEAD` && cat ./coverage/lcov.info | coveralls"
