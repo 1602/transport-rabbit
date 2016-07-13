@@ -1,4 +1,7 @@
-[![Coverage Status](https://coveralls.io/repos/github/1602/transport-rabbit/badge.svg?branch=master)](https://coveralls.io/github/1602/transport-rabbit?branch=master)
+[![NPM Version][npm-image]][npm-url]
+[![NPM Downloads][downloads-image]][downloads-url]
+[![Build status][build-image]][build-url]
+[![Test Coverage][coveralls-image]][coveralls-url]
 
 # Usage
 
@@ -101,3 +104,11 @@ npm run docker-test
 
 check [./test/README.md](./test/README.md) for more details on testing
 
+[coveralls-url]: https://coveralls.io/github/1602/transport-rabbit
+[coveralls-image]: https://coveralls.io/repos/github/1602/transport-rabbit/badge.svg
+[build-url]: https://circleci.com/gh/1602/transport-rabbit
+[build-image]: https://circleci.com/gh/1602/transport-rabbit.svg?style=shield
+[npm-image]: https://img.shields.io/npm/v/transport-rabbit.svg
+[npm-url]: https://npmjs.org/package/transport-rabbit
+[downloads-image]: https://img.shields.io/npm/dm/transport-rabbit.svg
+[downloads-url]: https://npmjs.org/package/transport-rabbit
