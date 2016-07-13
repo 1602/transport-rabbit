@@ -19,6 +19,7 @@
   "repository": "git@github.com:1602/transport-rabbit.git",
   "devDependencies": {
     "expect": "^1.20.1",
-    "mocha": "^2.5.3"
+    "mocha": "^2.5.3",
+    "istanbul": "^0.4.4"
   }
 }
