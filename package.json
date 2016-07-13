@@ -4,11 +4,11 @@
   "description": "Transport layer domain for rabbit",
   "main": "index.js",
   "scripts": {
-    "test": "mocha --no-exit -R spec",
     "start-test-rabbit": "docker run -d -p 5672:5672 --name test-rabbit-server --hostname test-rabbit-server rabbitmq:3.6-management",
-    "docker-test": "./run-test.sh",
-    "test-coverage": "istanbul cover node_modules/.bin/_mocha -- -R landing",
-    "coverage-report": "export COVERALLS_GIT_COMMIT=`git rev-parse HEAD` && cat ./coverage/lcov.info | coveralls"
+    "test": "mocha --no-exit --reporter spec --bail --check-leaks test/",
+    "test-ci": "istanbul cover node_modules/mocha/bin/_mocha --report lcovonly -- --reporter spec --check-leaks test/",
+    "test-coverage": "istanbul cover node_modules/.bin/_mocha -- --reporter landing --no-exit --check-leaks test/",
+    "test-docker": "./run-test.sh"
   },
   "author": "Anatoliy Chakkaev",
   "license": "MIT",
@@ -20,7 +20,6 @@
   "devDependencies": {
     "expect": "^1.20.1",
     "mocha": "^2.5.3",
-    "istanbul": "^0.4.4",
-    "coveralls": "^2.11.11"
+    "istanbul": "^0.4.4"
   }
 }
