@@ -116,7 +116,7 @@ function createServerFabric(transportLink) {
 
                 ch.sendToQueue(
                     replyTo,
-                    new Buffer(JSON.stringify({ payload })),
+                    new Buffer(JSON.stringify({ payload }), 'utf-8'),
                     { correlationId, type }
                 );
             } else if (respondTo) {
@@ -125,7 +125,7 @@ function createServerFabric(transportLink) {
                 ch.publish(
                     respondTo,
                     type,
-                    new Buffer(JSON.stringify({ payload })),
+                    new Buffer(JSON.stringify({ payload }), 'utf-8'),
                     { correlationId, type }
                 );
             }

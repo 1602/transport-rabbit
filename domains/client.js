@@ -2,7 +2,6 @@
 
 const assert = require('assert');
 const debug = require('debug')('rabbit:client');
-const generateId = require('./helpers').generateId;
 
 module.exports = createClientFabric;
 
@@ -37,7 +36,7 @@ function createClientFabric(transportLink) {
                     return chan.publish(
                         exchange,
                         toRoute || route,
-                        new Buffer(JSON.stringify({ payload })),
+                        new Buffer(JSON.stringify({ payload }), 'utf-8'),
                         { correlationId }
                     );
                 });

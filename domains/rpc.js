@@ -73,7 +73,7 @@ function createRpcFabric(transportLink, settings) {
                 .publish(
                     exchange,
                     route,
-                    new Buffer(JSON.stringify({ payload })), {
+                    new Buffer(JSON.stringify({ payload }), 'utf-8'), {
                         correlationId: resp.correlationId,
                         replyTo: [
                             rpcCallbackQueues[requestQueue].reply.queue,
