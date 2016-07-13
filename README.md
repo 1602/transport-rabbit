@@ -2,6 +2,7 @@
 [![NPM Downloads][downloads-image]][downloads-url]
 [![Build status][build-image]][build-url]
 [![Test Coverage][coveralls-image]][coveralls-url]
+[![Dependency Status][dependencies-image]][dependencies-url]
 
 # Usage
 
@@ -112,3 +113,5 @@ check [./test/README.md](./test/README.md) for more details on testing
 [npm-url]: https://npmjs.org/package/transport-rabbit
 [downloads-image]: https://img.shields.io/npm/dm/transport-rabbit.svg
 [downloads-url]: https://npmjs.org/package/transport-rabbit
+[dependencies-image]: https://david-dm.org/1602/transport-rabbit.svg
+[dependencies-url]: https://david-dm.org/1602/transport-rabbit
