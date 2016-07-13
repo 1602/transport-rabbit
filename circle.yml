@@ -5,3 +5,8 @@ machine:
     - rabbitmq-server
   environment:
     RABBIT_URL: amqp://localhost:5672
+
+test:
+  override:
+    - npm run test-coverage
+    - npm run coverage-report
