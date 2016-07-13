@@ -1,0 +1,7 @@
+machine:
+  node:
+    version: 6.2.0
+  services:
+    - rabbitmq-server
+  environment:
+    - 'RABBIT_URL=amqp://localhost:5672'
