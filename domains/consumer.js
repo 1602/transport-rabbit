@@ -27,20 +27,22 @@ function createConsumerFabric(transport) {
 
         assert(queueName, 'Consumer must have queue to consume from specified');
 
-        const channel = transport.getChannel(channelName);
+        const channel = transport.addChannel(channelName);
 
-        transport.addSetup(() => {
+        channel.addSetup(() => {
 
             return channel.assertQueue(queueName, queueOptions)
                 .then(asserted => {
 
-                    routingPatterns.forEach(routingPattern => {
-                        channel.bindQueue(
-                            asserted.queue,
-                            exchangeName,
-                            routingPattern
-                        );
-                    });
+                    if (routingPatterns) {
+                        routingPatterns.forEach(routingPattern => {
+                            channel.bindQueue(
+                                asserted.queue,
+                                exchangeName,
+                                routingPattern
+                            );
+                        });
+                    }
 
                     return channel.consume(asserted.queue, consume, consumerOptions)
                         .then(() => debug('ready to consume queue %s via %s',

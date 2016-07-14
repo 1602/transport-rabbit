@@ -4,7 +4,7 @@ const expect = require('expect');
 const queueTransport = require('../');
 const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.101:5672';
 
-describe.only('producer', () => {
+describe('producer', () => {
 
     let transport = null;
 
@@ -25,6 +25,7 @@ describe.only('producer', () => {
         const chan = transport.getChannel('custom');
         chan.assertExchange = () => {
             exchangeAsserted = true;
+            return Promise.resolve();
         };
 
         return transport.getReady()

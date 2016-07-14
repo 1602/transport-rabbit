@@ -54,9 +54,7 @@ function channel(channelName) {
             'nack', 'nackAll', 'reject', 'prefetch', 'recover'
         ].reduce((wrap, name) => {
             wrap[name] = function() {
-                if (name === 'assertQueue') {
-                    debug('assertQueue', arguments[0], arguments[1]);
-                }
+                debug(name, arguments);
                 return get()[name].apply(
                     amqpChannel,
                     slice.call(arguments));
