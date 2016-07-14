@@ -6,6 +6,7 @@ const createConnection = require('./connection');
 const createChannel = require('./channel');
 const createRpcFabric = require('./rpc');
 const createClientFabric = require('./client');
+const createRouterFabric = require('./router');
 const createProducerFabric = require('./producer');
 const createConsumerFabric = require('./consumer');
 const createServerFabric = require('./server');
@@ -54,6 +55,9 @@ function initTransport(settings) {
     const client = createClientFabric(transport);
     transport.client = spec => client.declare(spec);
 
+    const router = createRouterFabric(transport);
+    transport.router = spec => router.declare(spec);
+
     const producer = createProducerFabric(transport);
     transport.producer = spec => producer.declare(spec);
 
@@ -61,8 +65,8 @@ function initTransport(settings) {
     transport.consumer = spec => consumer.declare(spec);
 
     const server = createServerFabric(transport);
-    transport.intermediateServer = spec => server.declareIntermediate(spec);
-    transport.terminalServer = spec => server.declareTerminal(spec);
+    transport.intermediateServer = spec => server.declareIntermediateServer(spec);
+    transport.terminalServer = spec => server.declareTerminalServer(spec);
 
     const pubsub = createPubsubFabric(transport);
     transport.broadcaster = pubsub.createBroadcaster;

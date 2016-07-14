@@ -45,16 +45,26 @@ function channel(channelName) {
     function standardChannelInterface() {
         const slice = Array.prototype.slice;
         return [
+            'assertExchange',
             'assertQueue',
             'purgeQueue',
             'checkQueue',
             'deleteQueue',
-            'publish', 'sendToQueue', 'consume',
-            'cancel', 'get', 'ack', 'ackAll',
-            'nack', 'nackAll', 'reject', 'prefetch', 'recover'
+            'publish',
+            'sendToQueue',
+            'consume',
+            'cancel',
+            'get',
+            'ack',
+            'ackAll',
+            'nack',
+            'nackAll',
+            'reject',
+            'prefetch',
+            'recover'
         ].reduce((wrap, name) => {
             wrap[name] = function() {
-                debug(name, arguments);
+                debug(name + ' ' + arguments[0]);
                 return get()[name].apply(
                     amqpChannel,
                     slice.call(arguments));

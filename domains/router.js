@@ -1,11 +1,11 @@
 'use strict';
 
 const assert = require('assert');
-const debug = require('debug')('rabbit:client');
+const debug = require('debug')('rabbit:router');
 
-module.exports = createClientFabric;
+module.exports = createRouterFabric;
 
-function createClientFabric(transport) {
+function createRouterFabric(transport) {
 
     return {
         declare
@@ -15,20 +15,37 @@ function createClientFabric(transport) {
      * @param spec {Object}
      *  - getContextId
      *  - producer
+     *  - routes
      */
     function declare(spec) {
         const {
-            getContextId,
             channelName,
+            exchangeName,
+            getContextId,
             producer,
-            route
+            routes,
+            queueOptions
         } = spec;
 
-        assert(producer, 'Client must have producer specified');
+        assert(exchangeName, 'Router must have exchangeName specified');
+        assert(producer, 'Router must have producer specified');
+        assert(routes, 'Router must have routes specified');
 
         const channel = transport.addChannel(channelName);
 
-        return function send(payload, opts) {
+        channel.addSetup(() => {
+            return Promise.all(routes.map(route => {
+                const queueName = [ exchangeName, route ].join('.');
+                channel.assertQueue(queueName, queueOptions)
+                    .then(() => channel.bindQueue(
+                        queueName,
+                        exchangeName,
+                        route
+                    ));
+            }));
+        });
+
+        return function send(payload, route, opts) {
             channel.assertOpenChannel();
 
             return Promise.resolve(getCorrelationId(opts && opts.context))

@@ -13,7 +13,7 @@ function createConsumerFabric(transport) {
 
     function declare(spec) {
         const {
-            channelName,
+            channelName = 'default',
             queueName,
             exchangeName,
             routingPatterns,
@@ -25,7 +25,10 @@ function createConsumerFabric(transport) {
 
         const noAck = consumerOptions && consumerOptions.noAck;
 
-        assert(queueName, 'Consumer must have queue to consume from specified');
+        let pipe;
+
+        assert(typeof queueName !== 'undefined',
+            'Consumer must have queue to consume from specified');
 
         const channel = transport.addChannel(channelName);
 
@@ -46,16 +49,23 @@ function createConsumerFabric(transport) {
 
                     return channel.consume(asserted.queue, consume, consumerOptions)
                         .then(() => debug('ready to consume queue %s via %s',
-                              asserted.queue, channelName || 'default'));
+                              asserted.queue, channelName));
                 });
         });
 
+        return {
+            pipeTo: p => pipe = p
+        };
+
         function consume(msg) {
 
-            debug(`received ${msg.properties.type ||
-                  'msg'} to ${queueName ||
-                  'exclusive queue'} via ${channelName ||
-                  'default'}`);
+            debug(`received ${
+                msg.properties.type || 'msg'
+            } to ${
+                queueName || 'exclusive queue'
+            } via ${
+                channelName
+            }`);
 
             let msgHandled = noAck === true;
 
@@ -70,7 +80,23 @@ function createConsumerFabric(transport) {
                     context,
                     ack,
                     nack
-                }));
+                }))
+                .then(res => {
+                    ack();
+                    if (pipe && pipe.result) {
+                        pipe.result(res);
+                    }
+                })
+                .catch(err => {
+                    ack();
+                    if (pipe && pipe.error) {
+                        pipe.error({
+                            message: err.message,
+                            stack: err.stack,
+                            details: err.details,
+                        });
+                    }
+                });
 
             function safeAck(isAck) {
                 if (msgHandled) {

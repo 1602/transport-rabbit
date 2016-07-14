@@ -43,12 +43,12 @@ describe('channel', () => {
                 startServer('alpha', msg => alphaHello = msg);
                 startServer('bravo', msg => bravoHello = msg);
 
-                function startServer(channel, fn) {
+                function startServer(channelName, fn) {
                     transport.createCommandServer('task', (msg, job) => {
                         fn(msg);
-                        setTimeout(job.accept, 150);
+                        setTimeout(job.ack, 150);
                     }, {
-                        channel,
+                        channelName,
                         produceResults: false
                     });
                 }

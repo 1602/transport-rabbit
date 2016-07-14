@@ -2,9 +2,7 @@
 
 const assert = require('assert');
 
-module.exports = function createCommandFabric(transportLink) {
-
-    const transport = transportLink;
+module.exports = function createCommandFabric(transport) {
 
     return {
         createCommandSender,
@@ -16,62 +14,69 @@ module.exports = function createCommandFabric(transportLink) {
 
         opts = opts || {};
 
-        return transport.client({
-            produce: {
-                channel: opts.channel,
-                queue: {
-                    exchange: exchangeName,
-                    exchangeType: 'direct',
-                    routes: [ 'command' ],
-                    options: {
-                        exclusive: false,
-                        durable: true,
-                        autoDelete: false
-                    }
-                }
-            },
-            getContextId: opts.getContextId
+        const {
+            channelName,
+            getContextId
+        } = opts;
+
+        const producer = transport.producer({
+            channelName,
+            exchangeName,
+            exchangeType: 'direct',
         });
+
+        const channel = transport.getChannel(channelName);
+        channel.addSetup(() => {
+            return channel.bindQueue(
+                exchangeName + '.command',
+                exchangeName,
+                'command'
+            );
+        });
+
+        return transport.client({
+            producer,
+            getContextId,
+            route: 'command'
+        });
+
     }
 
     function createCommandServer(exchangeName, handler, opts) {
         opts = opts || {};
-        const schema = {
-            consume: {
-                channel: opts.channel,
-                queue: {
-                    exchange: exchangeName,
-                    exchangeType: 'direct',
-                    routes: [ 'command' ],
-                    options: {
-                        exclusive: false,
-                        durable: true,
-                        autoDelete: false
-                    }
-                }
+
+        const {
+            channelName
+        } = opts;
+
+        const consumer = transport.consumer({
+            channelName,
+            exchangeName,
+            exchangeType: 'direct',
+            queueName: exchangeName + '.command',
+            queueOptions: {
+                exclusive: false,
+                durable: true,
+                autoDelete: false
             },
-            handler: {
-                command: handler
-            },
-            produce: {
-                channel: opts.channel,
-                queue: {
-                    exchange: exchangeName,
-                    routes: [ 'result', 'error' ],
-                    options: {
-                        exclusive: false,
-                        durable: true,
-                        autoDelete: false
-                    }
-                }
-            }
-        };
+            routes: [ 'command' ],
+            handler
+        });
 
         if (opts.produceResults === false) {
-            delete schema.produce;
+            return transport.terminalServer({ consumer });
         }
 
-        return transport.intermediateServer(schema);
+        const producer = transport.producer({
+            channelName,
+            exchangeName
+        });
+
+        return transport.intermediateServer({
+            consumer,
+            producer
+        });
+
     }
 
     function createCommandResultRecipient(exchangeName, opts) {
@@ -91,6 +96,7 @@ module.exports = function createCommandFabric(transportLink) {
             const consumer = transport.consumer({
                 channelName,
                 exchangeName,
+                queueName: [ exchangeName, type ].join('.'),
                 routingPatterns: [ type ],
                 consumerOptions: { noAck: true },
                 getContextById,

@@ -17,13 +17,14 @@ describe('client', () => {
             url: rabbitUrl
         });
 
-        enqueueMessage = transport.client({
-            produce: {
-                queue: {
-                    exchange: 'log',
-                    routes: [ 'info', 'warn', 'error' ]
-                }
-            },
+        const producer = transport.producer({
+            exchangeName: 'log',
+        });
+
+        enqueueMessage = transport.router({
+            exchangeName: 'log',
+            producer,
+            routes: [ 'info', 'warn', 'error' ],
             getContextId: context => Job.create({ context }).then(job => String(job.id))
         });
 
@@ -62,14 +63,16 @@ describe('client', () => {
         return transport.close()
             .then(() => {
                 transport = queueTransport({ url: rabbitUrl });
-                enqueueMessage = transport.client({
-                    produce: {
-                        queue: {
-                            exchange: 'log',
-                            routes: [ 'info', 'warn', 'error' ]
-                        }
-                    }
+                const producer = transport.producer({
+                    exchangeName: 'log'
                 });
+
+                enqueueMessage = transport.router({
+                    producer,
+                    exchangeName: 'log',
+                    routes: [ 'info', 'warn', 'error' ],
+                });
+
                 expect(() => enqueueMessage('hello', 'warn')).toThrow('Client is not connected to channel');
                 return transport.getReady();
             });

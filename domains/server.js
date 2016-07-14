@@ -5,17 +5,14 @@ module.exports = createServerFabric;
 const assert = require('assert');
 const debug = require('debug')('rabbit:server');
 
-function createServerFabric(transportLink) {
-
-    const transport = transportLink;
-    const descriptors = [];
+function createServerFabric(transport) {
 
     return {
-        declareIntermediate,
-        declareTerminal
+        declareIntermediateServer,
+        declareTerminalServer
     };
 
-    function declareIntermediate(spec) {
+    function declareIntermediateServer(spec) {
         const {
             consumer,
             producer
@@ -24,10 +21,13 @@ function createServerFabric(transportLink) {
         assert(consumer, 'Server must have consumer specified');
         assert(producer, 'Server must have producer specified');
 
-        pipe(consumer).to(producer);
+        consumer.pipeTo({
+            result: transport.client({ producer, route: 'result' }),
+            error: transport.client({ producer, route: 'error' })
+        });
     }
 
-    function declareTerminal(spec) {
+    function declareTerminalServer(spec) {
         assert(spec.consumer, 'Server must have consumer specified');
     }
 

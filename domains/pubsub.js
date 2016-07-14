@@ -1,8 +1,6 @@
 'use strict';
 
-module.exports = function(transportLink) {
-
-    const transport = transportLink;
+module.exports = function(transport) {
 
     return {
         createBroadcaster,
@@ -10,32 +8,24 @@ module.exports = function(transportLink) {
     };
 
     function createBroadcaster(exchangeName) {
-        return transport.client({
-            produce: {
-                queue: {
-                    exchange: exchangeName,
-                    exchangeType: 'fanout'
-                }
-            }
+        const producer = transport.producer({
+            exchangeName,
+            exchangeType: 'fanout'
         });
+
+        return transport.client({ producer, route: 'default' });
     }
 
     function createReceiver(exchangeName, handler) {
-        return transport.server({
-            consume: {
-                queue: {
-                    exchange: exchangeName,
-                    exchangeType: 'fanout',
-                    routes: [ 'default' ],
-                    autogenerateQueues: true,
-                    options: {
-                        exclusive: true
-                    }
-                }
+        transport.consumer({
+            exchangeName,
+            exchangeType: 'fanout',
+            queueName: '',
+            routingPatterns: [ 'default' ],
+            queueOptions: {
+                exclusive: true
             },
-            handler: {
-                default: handler
-            }
+            handler
         });
     }
 

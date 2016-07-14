@@ -21,7 +21,7 @@ function createProducerFabric(transport) {
     function declare(spec) {
         const {
             exchangeName,
-            exchangeType,
+            exchangeType = 'direct',
             exchangeOptions,
             channelName
         } = spec;
@@ -33,17 +33,18 @@ function createProducerFabric(transport) {
         chan.addSetup(() => {
             debug('assert exchange %s type=%s', exchangeName, exchangeType);
             return chan.assertExchange(
-                    exchangeName,
-                    exchangeType || 'direct',
-                    exchangeOptions
-                );
+                exchangeName,
+                exchangeType,
+                exchangeOptions
+            );
         });
 
         return function send(payload, toRoute, opts) {
 
             chan.assertOpenChannel();
 
-            debug('Sending msg to route', toRoute, 'corrId =', opts && opts.correlationId);
+            debug('Sending msg to exchange "%s" via route "%s", corrId=%s', exchangeName, toRoute, opts && opts.correlationId);
+            console.log('payload is', payload);
 
             return chan.publish(
                 exchangeName,

@@ -7,7 +7,7 @@ const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.101:5672';
 
 /* eslint max-nested-callbacks: [2, 6] */
 
-describe('rpc', () => {
+describe.skip('rpc', () => {
 
     let runFiboRpc;
     let client;
@@ -19,36 +19,26 @@ describe('rpc', () => {
         server = queueTransport({ url: rabbitUrl });
 
         runFiboRpc = client.rpc({
-            produce: {
-                queue: {
-                    exchange: 'fibonacci',
-                    routes: [ 'query' ],
-                    options: {
-                        exclusive: false,
-                        durable: true,
-                        autoDelete: false
-                    }
-                }
-            },
+            exchangeName: 'fibonacci',
+            routingPatterns: [ 'query' ],
+            queueOptions: {
+                exclusive: false,
+                durable: true,
+                autoDelete: false
+            }
         });
 
-        server.server({
-            consume: {
-                queue: {
-                    exchange: 'fibonacci',
-                    routes: [ 'query' ],
-                    options: {
-                        exclusive: false,
-                        durable: true,
-                        autoDelete: false
-                    }
-                }
+        server.consumer({
+            exchangeName: 'fibonacci',
+            routingPatterns: [ 'query' ],
+            queueOptions: {
+                exclusive: false,
+                durable: true,
+                autoDelete: false
             },
-            handler: {
-                query: opts => {
-                    return Promise.resolve(opts.n)
-                        .then(n => calculateNonRecursive(n));
-                }
+            handler: opts => {
+                return Promise.resolve(opts.n)
+                    .then(n => calculateNonRecursive(n));
             }
         });
 
