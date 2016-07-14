@@ -5,46 +5,39 @@ const debug = require('debug')('rabbit:client');
 
 module.exports = createClientFabric;
 
-function createClientFabric(transportLink) {
-
-    const transport = transportLink;
-
-    const descriptors = [];
+function createClientFabric() {
 
     return {
         declare
     };
 
+    /**
+     * @param spec {Object}
+     *  - getContextId
+     *  - producer
+     */
     function declare(spec) {
-        assert(spec.produce, 'Client must have queue to produce to specified');
-        transport.addQueue(spec.produce);
+        const {
+            getContextId,
+            producer
+        } = spec;
 
-        descriptors.push(spec);
-
-        const exchange = spec.produce.queue.exchange;
-        const route = spec.produce.queue.routes && spec.produce.queue.routes[0];
+        assert(producer, 'Client must have producer specified');
 
         return function send(payload, toRoute, opts) {
-            const chan = transport.getChannel(spec.produce.channel);
-
-            chan.assertOpenChannel();
-
             return Promise.resolve(getCorrelationId(opts && opts.context))
                 .then(correlationId => {
-                    debug('Sending msg to route', toRoute || route, 'corrId =', correlationId);
+                    debug('Sending msg to route', toRoute, 'corrId =', correlationId);
 
-                    return chan.publish(
-                        exchange,
-                        toRoute || route,
-                        new Buffer(JSON.stringify({ payload }), 'utf-8'),
-                        { correlationId }
-                    );
+                    return producer(payload, toRoute, Object.assign({}, opts, {
+                        correlationId
+                    }));
                 });
         };
 
         function getCorrelationId(context) {
-            if (context && spec.getContextId) {
-                return spec.getContextId(context);
+            if (context && getContextId) {
+                return getContextId(context);
             }
 
             return null;

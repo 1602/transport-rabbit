@@ -6,6 +6,7 @@ const createConnection = require('./connection');
 const createChannel = require('./channel');
 const createRpcFabric = require('./rpc');
 const createClientFabric = require('./client');
+const createProducerFabric = require('./producer');
 const createServerFabric = require('./server');
 const createPubsubFabric = require('./pubsub');
 const createCommandFabric = require('./command');
@@ -26,6 +27,7 @@ function initTransport(settings) {
         getReady: () => new Promise(resolve => events.on('ready', resolve)),
         close: () => connection.close(),
         addQueue,
+        addChannel,
         getChannel: name => getChannel(name).wrap,
         getChannelQueues: name => getChannel(name).queues,
         isConnected: () => connection.isConnected(),
@@ -51,6 +53,9 @@ function initTransport(settings) {
     const client = createClientFabric(transport);
     transport.client = spec => client.declare(spec);
 
+    const producer = createProducerFabric(transport);
+    transport.producer = spec => producer.declare(spec);
+
     const server = createServerFabric(transport);
     transport.server = spec => server.declare(spec);
 
@@ -68,7 +73,6 @@ function initTransport(settings) {
             .map(name => {
                 debug('init "%s" channel', name);
                 const chan = transport.getChannel(name);
-                const queues = transport.getChannelQueues(name);
                 return connection.createChannel()
                     // .catch(err => {
                         // might happen if more than MAX_CHANNELS channels created
@@ -76,9 +80,9 @@ function initTransport(settings) {
                         // debug('Error while creating channel. Closing connection.', err);
                         // connection.close();
                     // })
-                    .then(ch => chan.bind(ch, queues, settings));
+                    .then(ch => chan.bind(ch, settings));
             }))
-            .then(() => setupChannels())
+            // .then(() => setupChannels())
             .then(() => transport.events.emit('ready'))
             .catch(err => {
                 debug('error during init', err.stack);
@@ -99,13 +103,14 @@ function initTransport(settings) {
 
     return transport;
 
-    function setupChannels() {
-        return Promise.resolve()
-            .then(() => Promise.all([
-                server.init(),
-                rpc.init()
-            ]));
-    }
+    // function setupChannels() {
+    //     return Promise.resolve()
+    //         .then(() => Promise.all([
+    //             server.init(),
+    //             rpc.init(),
+    //             producer.init()
+    //         ]));
+    // }
 
     function addQueue(queueDescriptor) {
         assert(isValidQueueDescriptor(queueDescriptor),
@@ -121,7 +126,7 @@ function initTransport(settings) {
             queues: [],
             wrap: createChannel(channelName)
         };
-        return channels[channelName];
+        return channels[channelName].wrap;
     }
 
     function isValidQueueDescriptor(queueDescriptor) {

@@ -8,7 +8,6 @@ const debug = require('debug')('rabbit:server');
 function createServerFabric(transportLink) {
 
     const transport = transportLink;
-
     const descriptors = [];
 
     return {
@@ -16,6 +15,10 @@ function createServerFabric(transportLink) {
         declare
     };
 
+    // TODO decouple consumer: (channelName, queueName, queueOptions);
+    //  - assert queue
+    //  - bind exchange
+    //  - only one handler which will not return promise
     function init() {
 
         return Promise.all(descriptors

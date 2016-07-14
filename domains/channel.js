@@ -16,6 +16,7 @@ function channel(channelName) {
 
     let prefetchCount = DEFAULT_PREFETCH;
     let prefetchIsGlobal = false;
+    const setupHooks = [];
 
 
     const channelWrapper = Object.assign(standardChannelInterface(), {
@@ -31,8 +32,8 @@ function channel(channelName) {
             return amqpChannel.bindQueue(queueName, exchangeName, route, options);
         },
 
+        addSetup: fn => setupHooks.push(fn),
         getSettings: () => ({ prefetchCount, prefetchIsGlobal }),
-
         bind,
         assertOpenChannel,
 
@@ -80,10 +81,9 @@ function channel(channelName) {
      * asserts queues and set up channel (prefetch, etc.).
      *
      * @param channel {AMQPChannel(amqplib)} - amqp channel.
-     * @param queues {Array} - queue descriptors.
      * @param settings {Object} - { prefetch: Number }.
      */
-    function bind(channel, queues, settings) {
+    function bind(channel, settings) {
 
         amqpChannel = channel;
 
@@ -119,7 +119,7 @@ function channel(channelName) {
         debug('setting prefetch to %d, global=%s', prefetchCount, prefetchIsGlobal);
 
         return channel.prefetch(prefetchCount, prefetchIsGlobal)
-            .then(() => assertQueues(queues))
+            .then(() => Promise.all(setupHooks.map(fn => fn())))
             .then(() => {
                 debug('channel %s ready', channelName);
             });

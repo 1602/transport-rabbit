@@ -8,5 +8,5 @@ machine:
 
 test:
   override:
-    - npm run test-coverage
+    - npm run test-ci
     - npm i coveralls && export COVERALLS_GIT_COMMIT=`git rev-parse HEAD` && cat ./coverage/lcov.info | coveralls
