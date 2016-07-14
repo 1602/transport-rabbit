@@ -71,28 +71,35 @@ module.exports = function createCommandFabric(transportLink) {
             delete schema.produce;
         }
 
-        return transport.server(schema);
+        return transport.intermediateServer(schema);
     }
 
     function createCommandResultRecipient(exchangeName, opts) {
-
         assert(opts, 'Required "opts" argument is missing');
 
-        transport.server({
-            consume: {
-                channel: opts.channel,
-                queue: {
-                    exchange: exchangeName,
-                    routes: [ 'result', 'error' ],
-                },
-                options: { noAck: true }
-            },
-            handler: {
-                result: opts.result,
-                error: opts.error,
-            },
-            getContextById: opts.getContextById
-        });
+        const {
+            result,
+            error,
+            channelName,
+            getContextById
+        } = opts;
+
+        consume('result', result);
+        consume('error', error);
+
+        function consume(type, handler) {
+            const consumer = transport.consumer({
+                channelName,
+                exchangeName,
+                routingPatterns: [ type ],
+                consumerOptions: { noAck: true },
+                getContextById,
+                handler
+            });
+
+            transport.terminalServer({ consumer });
+        }
+
     }
 
 };

@@ -11,54 +11,24 @@ function createServerFabric(transportLink) {
     const descriptors = [];
 
     return {
-        init,
-        declare
+        declareIntermediate,
+        declareTerminal
     };
 
-    // TODO decouple consumer: (channelName, queueName, queueOptions);
-    //  - assert queue
-    //  - bind exchange
-    //  - only one handler which will not return promise
-    function init() {
+    function declareIntermediate(spec) {
+        const {
+            consumer,
+            producer
+        } = spec;
 
-        return Promise.all(descriptors
-            .map(d => {
-                debug('will attempt to consume %s{%s}',
-                    d.consume.queue.exchange,
-                    d.consume.queue.routes);
+        assert(consumer, 'Server must have consumer specified');
+        assert(producer, 'Server must have producer specified');
 
-                return Promise.all(d.consume.queue.routes.map(route => {
-                    const queueName = d.consume.queue.queueNames[route];
-
-                    const chan = transport.getChannel(d.consume.channel);
-
-                    chan
-                        .consume(queueName, msg => {
-                            debug(`received ${msg && msg.properties.type || 'msg'} to ${queueName} via ${d.consume.channel || 'default'}`);
-                            execJob(
-                                chan,
-                                d.handler[route],
-                                msg,
-                                d.produce && d.produce.queue.exchange,
-                                d.getContextById,
-                                d.consume.options
-                            );
-                        }, d.consume.options)
-                            .then(() => debug('ready to consume queue %s (%s) via %s',
-                                  queueName, route, d.consume.channel || 'default'));
-                }));
-            }));
+        pipe(consumer).to(producer);
     }
 
-    function declare(spec) {
-        assert(spec.consume, 'Server must have queue to consume from specified');
-        transport.addQueue(spec.consume);
-
-        descriptors.push(spec);
-
-        if (spec.produce) {
-            transport.addQueue(spec.produce);
-        }
+    function declareTerminal(spec) {
+        assert(spec.consumer, 'Server must have consumer specified');
     }
 
     function execJob(channel, handler, msg, respondTo, getContextById, consOpts) {

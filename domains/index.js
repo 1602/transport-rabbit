@@ -61,7 +61,8 @@ function initTransport(settings) {
     transport.consumer = spec => consumer.declare(spec);
 
     const server = createServerFabric(transport);
-    transport.server = spec => server.declare(spec);
+    transport.intermediateServer = spec => server.declareIntermediate(spec);
+    transport.terminalServer = spec => server.declareTerminal(spec);
 
     const pubsub = createPubsubFabric(transport);
     transport.broadcaster = pubsub.createBroadcaster;
