@@ -27,7 +27,12 @@ function initTransport(settings) {
     const transport = {
         events,
         getReady: () => new Promise(resolve => events.on('ready', resolve)),
-        close: () => connection.close(),
+        close: () => {
+            return Promise.all(
+                Object.keys(channels).map(channelId => channels[channelId].close())
+            )
+                .then(() => connection.close());
+        },
         addChannel,
         getChannel: name => getChannel(name).wrap,
         isConnected: () => connection.isConnected(),

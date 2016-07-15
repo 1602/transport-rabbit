@@ -63,7 +63,8 @@ function channel(channelName) {
             'nackAll',
             'reject',
             'prefetch',
-            'recover'
+            'recover',
+            'close'
         ].reduce((wrap, name) => {
             wrap[name] = function() {
                 debug(name + ' ' + arguments[0]);
