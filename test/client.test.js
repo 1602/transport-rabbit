@@ -17,15 +17,11 @@ describe('client', () => {
             url: rabbitUrl
         });
 
-        const producer = transport.producer({
-            exchangeName: 'log',
-        });
-
         enqueueMessage = transport.router({
             exchangeName: 'log',
-            producer,
             routes: [ 'info', 'warn', 'error' ],
-            getContextId: context => Job.create({ context }).then(job => String(job.id))
+            getContextId: context => Job.create({ context })
+                .then(job => String(job.id))
         });
 
         return transport.getReady()

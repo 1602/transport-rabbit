@@ -7,8 +7,6 @@ const debug = require('debug')('rabbit:consumer');
 
 function createConsumerFabric(transport) {
 
-    let assertedQueueName = '';
-
     /**
      * @param spec {Object}:
      *  - queueName {String} - name of queue
@@ -21,6 +19,9 @@ function createConsumerFabric(transport) {
      *  - channelName {String} - name of channel (optional, defaults to 'default')
      */
     return function createConsumer(spec) {
+
+        let assertedQueueName = '';
+
         const {
             queueName, // required, can be empty string for exclusive queue
             exchangeName,

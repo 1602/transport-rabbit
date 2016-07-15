@@ -26,13 +26,15 @@ module.exports = function(transport) {
         assert(typeof consume === 'function',
             'Receiver requires exchangeName: Function/2');
 
-        transport.consumer({
+        return transport.consumer({
             exchangeName,
             exchangeType: 'fanout',
             queueName: '',
             routingPatterns: [ 'default' ],
             queueOptions: {
-                exclusive: true
+                exclusive: true,
+                durable: false,
+                autoDelete: true
             },
             consume
         });
