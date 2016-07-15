@@ -13,17 +13,17 @@ function createProducerFabric(transport) {
 
     /**
      * @param spec {Object}:
-     *  - exchangeName {String} - name of exchange.
-     *  - exchangeType {String} - type of exchange.
-     *  - exchangeOptions {Object} - options for exchange assertion.
-     *  - channelName {String} - name of channel (optional, defaults to 'default').
+     *  - exchangeName {String} - name of exchange
+     *  - exchangeType {String} - type of exchange
+     *  - exchangeOptions {Object} - options for assertExchange
+     *  - channelName {String} - name of channel (optional, defaults to 'default')
      */
     function declare(spec) {
         const {
             exchangeName,
             exchangeType = 'direct',
-            exchangeOptions,
-            channelName
+            exchangeOptions = {},
+            channelName = 'default'
         } = spec;
 
         const chan = transport.addChannel(channelName);

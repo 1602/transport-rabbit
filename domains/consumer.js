@@ -11,41 +11,50 @@ function createConsumerFabric(transport) {
         declare
     };
 
+    /**
+     * @param spec {Object}:
+     *  - queueName {String} - name of queue
+     *    (optional, defaults to undefined for exclusive queue)
+     *  - exchangeName {String} - name of exchange to bind queue to
+     *  - routingPatterns {Array<String>} - routing keys for queue binding
+     *    (optional, defaults to [])
+     *  - handler {(Object, { msg, context, ack, nack }) => Promise} - message handler
+     *  - getContextById {String => Promise<Object>} - populates context for handler
+     *  - queueOptions {Object} - options for assertQueue (defaults to {})
+     *  - consumerOptions {Object} - options for ch.consume (defaults to {})
+     *  - channelName {String} - name of channel (optional, defaults to 'default')
+     */
     function declare(spec) {
         const {
-            channelName = 'default',
             queueName,
             exchangeName,
-            routingPatterns,
-            queueOptions,
-            consumerOptions,
-            getContextById,
+            routingPatterns = [],
             handler,
+            getContextById,
+            channelName = 'default',
+            queueOptions = {},
+            consumerOptions = {},
         } = spec;
-
-        const noAck = consumerOptions && consumerOptions.noAck;
-
-        let pipe;
 
         assert(typeof queueName !== 'undefined',
             'Consumer must have queue to consume from specified');
 
         const channel = transport.addChannel(channelName);
+        const noAck = consumerOptions.noAck;
+
+        let pipe;
 
         channel.addSetup(() => {
-
             return channel.assertQueue(queueName, queueOptions)
                 .then(asserted => {
-
-                    if (routingPatterns) {
-                        routingPatterns.forEach(routingPattern => {
-                            channel.bindQueue(
-                                asserted.queue,
-                                exchangeName,
-                                routingPattern
-                            );
-                        });
-                    }
+                    routingPatterns.forEach(routingPattern => {
+                        debug(`bind ${asserted.queue} to ${exchangeName} (${routingPattern})`);
+                        channel.bindQueue(
+                            asserted.queue,
+                            exchangeName,
+                            routingPattern
+                        );
+                    });
 
                     return channel.consume(asserted.queue, consume, consumerOptions)
                         .then(() => debug('ready to consume queue %s via %s',
