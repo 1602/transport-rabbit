@@ -104,61 +104,6 @@ describe('server', () => {
 
     });
 
-    context('channel about to close', () => {
-
-        it.skip('handler will not be called with null', (done) => {
-            const transport = queueTransport({ url: rabbitUrl });
-            const get = transport.channel.get;
-            let channel;
-            transport.channel.get = function() {
-                if (channel) {
-                    return channel;
-                }
-                channel = get();
-                const consume = channel.consume;
-                channel.consume = function(queue, fn) {
-                    return consume.call(channel, queue, function() {
-                        setTimeout(() => {
-                            transport.close();
-                            if (defaultHandlerCalled) {
-                                done(new Error('Handler called unexpectedly'));
-                            } else {
-                                done();
-                            }
-                        }, 10);
-                        fn(null);
-                    });
-                };
-                return channel;
-            };
-
-            const send = transport.client({
-                produce: {
-                    queue: {
-                        exchange: 'nothing-special',
-                        routes: [ 'default' ]
-                    }
-                }
-            });
-
-            let defaultHandlerCalled = false;
-
-            transport.server({
-                consume: {
-                    queue: {
-                        exchange: 'nothing-special',
-                        routes: [ 'default' ]
-                    }
-                },
-                handler: {
-                    default: () => defaultHandlerCalled = true
-                }
-            });
-
-            transport.getReady().then(() => send('msg'));
-        });
-    });
-
     describe('ack', () => {
 
         let transport = null;

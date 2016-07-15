@@ -51,11 +51,13 @@ describe('client', () => {
     });
 
     it('should support context', () => {
-        return enqueueMessage('log message', 'error', { context: { hello: 'world' } })
+        return enqueueMessage('log message', 'info', {
+            context: { hello: 'world' }
+        })
             .then(() => expect(jobs.length).toBe(1));
     });
 
-    it('should throw when called to early', () => {
+    it('should throw when called too early', () => {
         return transport.close()
             .then(() => {
                 transport = queueTransport({ url: rabbitUrl });

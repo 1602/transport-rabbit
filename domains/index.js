@@ -72,7 +72,11 @@ function initTransport(settings) {
                 debug('init "%s" channel', name);
                 const chan = transport.getChannel(name);
                 return connection.createChannel()
-                    .then(ch => chan.bind(ch, settings));
+                    .then(ch => chan.bind(ch, settings))
+                    .catch(err => {
+                        connection.close();
+                        throw err;
+                    });
             }))
             .then(() => transport.events.emit('ready'))
             .catch(err => {

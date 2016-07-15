@@ -8,10 +8,6 @@ const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.101:5672';
 
 describe('channel', () => {
 
-    it('should send messages to queue');
-
-    it('should publish messages to exchange');
-
     it('should allow to take care of stream throughput');
 
     describe('#prefetch', () => {
