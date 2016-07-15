@@ -22,7 +22,7 @@ function createProducerFabric(transport) {
             channelName = 'default'
         } = spec;
 
-        const chan = transport.addChannel(channelName);
+        const chan = transport.assertChannel(channelName);
 
         assert(exchangeName, 'Producer must have exchangeName specified');
 

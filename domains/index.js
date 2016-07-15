@@ -30,7 +30,7 @@ function initTransport(settings) {
         close: () => {
             return connection.close();
         },
-        addChannel,
+        assertChannel,
         getChannel: name => getChannel(name),
         isConnected: () => connection.isConnected(),
         assertedQueues: Object.create(null),
@@ -46,7 +46,7 @@ function initTransport(settings) {
     const connection = createConnection(settings);
 
     transport.connection = connection;
-    addChannel('default');
+    assertChannel('default');
     transport.queue = queue(transport, 'default');
 
     transport.client = createClientFabric(transport);
@@ -98,7 +98,7 @@ function initTransport(settings) {
 
     return transport;
 
-    function addChannel(channelName) {
+    function assertChannel(channelName) {
         channelName = channelName || 'default';
 
         if (!(channelName in channels)) {

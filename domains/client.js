@@ -30,7 +30,7 @@ function createClientFabric(transport) {
             exchangeType
         });
 
-        const channel = transport.addChannel(channelName);
+        const channel = transport.assertChannel(channelName);
 
         return function send(payload, opts) {
             channel.assertOpenChannel();

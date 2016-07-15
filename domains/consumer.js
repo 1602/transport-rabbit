@@ -38,7 +38,7 @@ function createConsumerFabric(transport) {
         assert.equal(typeof consume, 'function',
             'Consumer must have "consume(payload, job)" function specified');
 
-        const channel = transport.addChannel(channelName);
+        const channel = transport.assertChannel(channelName);
         const noAck = consumerOptions.noAck;
 
         channel.addSetup(() => {

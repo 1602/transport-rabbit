@@ -30,7 +30,7 @@ function createRouterFabric(transport) {
             exchangeName
         });
 
-        const channel = transport.addChannel(channelName);
+        const channel = transport.assertChannel(channelName);
 
         channel.addSetup(() => {
             return Promise.all(routes.map(route => {
