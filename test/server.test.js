@@ -53,14 +53,16 @@ describe('server', () => {
 
             });
 
-            transport.createCommandServer('task', (msg, job) => {
-                job.ack();
+            transport.createCommandServer('task', {
+                handler(msg, job) {
+                    job.ack();
 
-                if (msg) {
-                    return 'hola';
+                    if (msg) {
+                        return 'hola';
+                    }
+
+                    throw new Error('Oops');
                 }
-
-                throw new Error('Oops');
             });
 
             return transport.getReady();
@@ -167,8 +169,10 @@ describe('server', () => {
             transport = queueTransport({ url: rabbitUrl });
             send = transport.createCommandSender('task-donotcare');
 
-            transport.createCommandServer('task-donotcare', function() {
-                return handler.apply(null, [].slice.call(arguments));
+            transport.createCommandServer('task-donotcare', {
+                handler: function() {
+                    return handler.apply(null, [].slice.call(arguments));
+                }
             });
 
             return transport.getReady();
@@ -178,11 +182,10 @@ describe('server', () => {
             return transport.close();
         });
 
-        it.skip('should allow to nack', done => {
+        it('should allow to nack', done => {
             let rejectedOnce = false;
             handler = (param, job) => {
                 expect(param).toBe('hello');
-                expect(job.context).toBe(null);
                 expect(typeof job.ack).toBe('function');
                 expect(typeof job.nack).toBe('function');
                 if (rejectedOnce) {

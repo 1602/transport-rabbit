@@ -9,7 +9,6 @@ const createClientFabric = require('./client');
 const createRouterFabric = require('./router');
 const createProducerFabric = require('./producer');
 const createConsumerFabric = require('./consumer');
-const createServerFabric = require('./server');
 const createPubsubFabric = require('./pubsub');
 const createCommandFabric = require('./command');
 const queue = require('./queue');
@@ -28,7 +27,6 @@ function initTransport(settings) {
         events,
         getReady: () => new Promise(resolve => events.on('ready', resolve)),
         close: () => connection.close(),
-        addQueue,
         addChannel,
         getChannel: name => getChannel(name).wrap,
         getChannelQueues: name => getChannel(name).queues,
@@ -50,7 +48,8 @@ function initTransport(settings) {
     transport.queue = queue(transport, 'default');
 
     const rpc = createRpcFabric(transport, settings);
-    transport.rpc = spec => rpc.declare(spec);
+    transport.rpcClient = rpc.declareClient;
+    transport.rpcServer = rpc.declareServer;
 
     const client = createClientFabric(transport);
     transport.client = spec => client.declare(spec);
@@ -63,10 +62,6 @@ function initTransport(settings) {
 
     const consumer = createConsumerFabric(transport);
     transport.consumer = spec => consumer.declare(spec);
-
-    const server = createServerFabric(transport);
-    transport.intermediateServer = spec => server.declareIntermediateServer(spec);
-    transport.terminalServer = spec => server.declareTerminalServer(spec);
 
     const pubsub = createPubsubFabric(transport);
     transport.broadcaster = pubsub.createBroadcaster;
@@ -91,7 +86,6 @@ function initTransport(settings) {
                     // })
                     .then(ch => chan.bind(ch, settings));
             }))
-            // .then(() => setupChannels())
             .then(() => transport.events.emit('ready'))
             .catch(err => {
                 debug('error during init', err.stack);
@@ -112,35 +106,18 @@ function initTransport(settings) {
 
     return transport;
 
-    // function setupChannels() {
-    //     return Promise.resolve()
-    //         .then(() => Promise.all([
-    //             server.init(),
-    //             rpc.init(),
-    //             producer.init()
-    //         ]));
-    // }
-
-    function addQueue(queueDescriptor) {
-        assert(isValidQueueDescriptor(queueDescriptor),
-            'Invalid queue descriptor (consume)');
-
-        addChannel(queueDescriptor.channel)
-            .queues.push(queueDescriptor.queue);
-    }
-
     function addChannel(channelName) {
         channelName = channelName || 'default';
-        channels[channelName] = channels[channelName] || {
-            queues: [],
-            wrap: createChannel(channelName)
-        };
+
+        if (!(channelName in channels)) {
+            debug('creating wrapper for %s channel', channelName);
+            channels[channelName] = {
+                queues: [],
+                wrap: createChannel(channelName)
+            };
+        }
+
         return channels[channelName].wrap;
     }
-
-    function isValidQueueDescriptor(queueDescriptor) {
-        return queueDescriptor instanceof Object && queueDescriptor.queue instanceof Object;
-    }
-
 }
 

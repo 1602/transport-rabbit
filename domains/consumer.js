@@ -7,6 +7,8 @@ const debug = require('debug')('rabbit:consumer');
 
 function createConsumerFabric(transport) {
 
+    let assertedQueueName = '';
+
     return {
         declare
     };
@@ -14,21 +16,21 @@ function createConsumerFabric(transport) {
     function declare(spec) {
         const {
             channelName = 'default',
-            queueName,
+            queueName, // required, can be empty string for exclusive queue
             exchangeName,
             routingPatterns,
             queueOptions,
             consumerOptions,
-            getContextById,
-            handler,
+            consume,
         } = spec;
 
         const noAck = consumerOptions && consumerOptions.noAck;
 
-        let pipe;
-
         assert(typeof queueName !== 'undefined',
             'Consumer must have queue to consume from specified');
+
+        assert(typeof consume === 'function',
+            'Consumer must have "consume(payload, job)" function specified');
 
         const channel = transport.addChannel(channelName);
 
@@ -43,21 +45,39 @@ function createConsumerFabric(transport) {
                                 asserted.queue,
                                 exchangeName,
                                 routingPattern
-                            );
+                            )
+                                .then(() => {
+                                    debug('queue "%s" bound to "%s" routed as "%s"',
+                                        asserted.queue,
+                                        exchangeName,
+                                        routingPattern);
+                                });
                         });
+                    } else if (queueName === '') {
+                        // bind exclusive queues to exchanges to be able to use
+                        // producer(payload, generatedQueue);
+                        channel.bindQueue(
+                            asserted.queue,
+                            exchangeName,
+                            asserted.queue
+                        );
                     }
 
-                    return channel.consume(asserted.queue, consume, consumerOptions)
-                        .then(() => debug('ready to consume queue %s via %s',
+                    assertedQueueName = asserted.queue;
+
+                    return channel.consume(asserted.queue, handler, consumerOptions)
+                        .then(() => debug('ready to consume "%s" via %s channel',
                               asserted.queue, channelName));
                 });
         });
 
         return {
-            pipeTo: p => pipe = p
+            get assertedQueue() {
+                return assertedQueueName;
+            }
         };
 
-        function consume(msg) {
+        function handler(msg) {
 
             debug(`received ${
                 msg.properties.type || 'msg'
@@ -74,29 +94,7 @@ function createConsumerFabric(transport) {
             const ack = () => safeAck(true);
             const nack = () => safeAck(false);
 
-            getContext()
-                .then(context => handler(data && data.payload, {
-                    msg,
-                    context,
-                    ack,
-                    nack
-                }))
-                .then(res => {
-                    ack();
-                    if (pipe && pipe.result) {
-                        pipe.result(res);
-                    }
-                })
-                .catch(err => {
-                    ack();
-                    if (pipe && pipe.error) {
-                        pipe.error({
-                            message: err.message,
-                            stack: err.stack,
-                            details: err.details,
-                        });
-                    }
-                });
+            consume(data && data.payload, { msg, ack, nack });
 
             function safeAck(isAck) {
                 if (msgHandled) {
@@ -111,24 +109,6 @@ function createConsumerFabric(transport) {
 
                 debug('nack');
                 return ch.nack(msg);
-            }
-
-            function getContext() {
-                if ('function' !== typeof getContextById) {
-                    return Promise.resolve(null);
-                }
-
-                const correlationId = msg.properties.correlationId;
-
-                if (!correlationId) {
-                    return Promise.resolve(null);
-                }
-
-                return Promise.resolve(getContextById(correlationId))
-                    .catch(err => {
-                        debug('error while retrieving context', err.stack);
-                        return null;
-                    });
             }
 
         }

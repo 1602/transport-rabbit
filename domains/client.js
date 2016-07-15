@@ -1,7 +1,7 @@
 'use strict';
 
-const assert = require('assert');
 const debug = require('debug')('rabbit:client');
+const assert = require('assert');
 
 module.exports = createClientFabric;
 
@@ -18,13 +18,21 @@ function createClientFabric(transport) {
      */
     function declare(spec) {
         const {
-            getContextId,
             channelName,
-            producer,
+            exchangeName,
+            exchangeType = 'direct',
+
+            getContextId,
             route
         } = spec;
 
-        assert(producer, 'Client must have producer specified');
+        assert(exchangeName, 'Client requires exchangeName');
+
+        const producer = transport.producer({
+            channelName,
+            exchangeName,
+            exchangeType
+        });
 
         const channel = transport.addChannel(channelName);
 
@@ -50,6 +58,7 @@ function createClientFabric(transport) {
 
             return null;
         }
+
     }
 
 }

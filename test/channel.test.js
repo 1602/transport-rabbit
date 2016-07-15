@@ -44,10 +44,11 @@ describe('channel', () => {
                 startServer('bravo', msg => bravoHello = msg);
 
                 function startServer(channelName, fn) {
-                    transport.createCommandServer('task', (msg, job) => {
-                        fn(msg);
-                        setTimeout(job.ack, 150);
-                    }, {
+                    transport.createCommandServer('task', {
+                        handler(msg, job) {
+                            fn(msg);
+                            setTimeout(job.ack, 150);
+                        },
                         channelName,
                         produceResults: false
                     });

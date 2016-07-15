@@ -18,7 +18,9 @@ describe('consumer', () => {
         transport.consumer({
             channelName: 'custom',
             exchangeName: 'task',
-            queueName: 'command'
+            queueName: 'command',
+            consume() {
+            }
         });
 
         let queueConsumed = false;

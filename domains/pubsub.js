@@ -1,5 +1,7 @@
 'use strict';
 
+const assert = require('assert');
+
 module.exports = function(transport) {
 
     return {
@@ -8,15 +10,22 @@ module.exports = function(transport) {
     };
 
     function createBroadcaster(exchangeName) {
-        const producer = transport.producer({
-            exchangeName,
-            exchangeType: 'fanout'
-        });
+        assert(typeof exchangeName === 'string',
+            'Receiver requires exchangeName: String');
 
-        return transport.client({ producer, route: 'default' });
+        return transport.client({
+            exchangeName,
+            exchangeType: 'fanout',
+            route: 'default'
+        });
     }
 
-    function createReceiver(exchangeName, handler) {
+    function createReceiver(exchangeName, consume) {
+        assert(typeof exchangeName === 'string',
+            'Receiver requires exchangeName: String');
+        assert(typeof consume === 'function',
+            'Receiver requires exchangeName: Function/2');
+
         transport.consumer({
             exchangeName,
             exchangeType: 'fanout',
@@ -25,7 +34,7 @@ module.exports = function(transport) {
             queueOptions: {
                 exclusive: true
             },
-            handler
+            consume
         });
     }
 
