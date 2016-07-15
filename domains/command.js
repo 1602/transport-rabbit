@@ -76,6 +76,8 @@ module.exports = function createCommandFabric(transport) {
             },
             routes: [ 'command' ],
             consume(payload, job) {
+                const correlationId = job.msg.properties.correlationId;
+
                 if (!producer) {
                     try {
                         handler(payload, job);
@@ -85,14 +87,19 @@ module.exports = function createCommandFabric(transport) {
                     }
                     return;
                 }
+
                 Promise.resolve()
                     .then(() => handler(payload, job))
-                    .then(result => producer(result, 'result'))
+                    .then(result => producer(result, 'result', {
+                        correlationId
+                    }))
                     .catch(err => producer({
                         message: err.message,
                         stack: err.stack,
                         details: err.details
-                    }, 'error'));
+                    }, 'error', {
+                        correlationId
+                    }));
             }
         });
 

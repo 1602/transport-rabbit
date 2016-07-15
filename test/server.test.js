@@ -75,6 +75,7 @@ describe('server', () => {
             client(1, { context: { say: 'hello' } });
             setTimeout(() => {
                 expect(result1).toEqual('hola');
+                expect(context1).toEqual({ say: 'hello' });
                 done();
             }, 300);
         });
