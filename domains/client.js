@@ -7,16 +7,12 @@ module.exports = createClientFabric;
 
 function createClientFabric(transport) {
 
-    return {
-        declare
-    };
-
     /**
      * @param spec {Object}
      *  - getContextId
      *  - producer
      */
-    function declare(spec) {
+    return function createClient(spec) {
         const {
             channelName,
             exchangeName,
@@ -59,6 +55,6 @@ function createClientFabric(transport) {
             return null;
         }
 
-    }
+    };
 
 }

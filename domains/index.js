@@ -29,7 +29,6 @@ function initTransport(settings) {
         close: () => connection.close(),
         addChannel,
         getChannel: name => getChannel(name).wrap,
-        getChannelQueues: name => getChannel(name).queues,
         isConnected: () => connection.isConnected(),
         assertedQueues: Object.create(null),
     };
@@ -47,21 +46,18 @@ function initTransport(settings) {
     addChannel('default');
     transport.queue = queue(transport, 'default');
 
+    transport.producer = spec => createProducerFabric(transport)(spec);
+
+    transport.consumer = spec => createConsumerFabric(transport)(spec);
+
+    transport.client = createClientFabric(transport);
+    transport.router = createRouterFabric(transport);
+    transport.producer = createProducerFabric(transport);
+    transport.consumer = createConsumerFabric(transport);
+
     const rpc = createRpcFabric(transport, settings);
     transport.rpcClient = rpc.declareClient;
     transport.rpcServer = rpc.declareServer;
-
-    const client = createClientFabric(transport);
-    transport.client = spec => client.declare(spec);
-
-    const router = createRouterFabric(transport);
-    transport.router = spec => router.declare(spec);
-
-    const producer = createProducerFabric(transport);
-    transport.producer = spec => producer.declare(spec);
-
-    const consumer = createConsumerFabric(transport);
-    transport.consumer = spec => consumer.declare(spec);
 
     const pubsub = createPubsubFabric(transport);
     transport.broadcaster = pubsub.createBroadcaster;

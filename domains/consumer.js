@@ -9,51 +9,57 @@ function createConsumerFabric(transport) {
 
     let assertedQueueName = '';
 
-    return {
-        declare
-    };
-
-    function declare(spec) {
+    /**
+     * @param spec {Object}:
+     *  - queueName {String} - name of queue
+     *  - exchangeName {String} - name of exchange to bind queue to
+     *  - routingPatterns {Array<String>} - routing keys for queue binding
+     *    (optional, defaults to [])
+     *  - handler {(Object, { msg, context, ack, nack }) => Promise} - message handler
+     *  - queueOptions {Object} - options for assertQueue (defaults to {})
+     *  - consumerOptions {Object} - options for ch.consume (defaults to {})
+     *  - channelName {String} - name of channel (optional, defaults to 'default')
+     */
+    return function createConsumer(spec) {
         const {
-            channelName = 'default',
             queueName, // required, can be empty string for exclusive queue
             exchangeName,
-            routingPatterns,
-            queueOptions,
-            consumerOptions,
+            routingPatterns = [],
+            queueOptions = {},
+            consumerOptions = {},
             consume,
+            channelName = 'default',
         } = spec;
 
-        const noAck = consumerOptions && consumerOptions.noAck;
-
-        assert(typeof queueName !== 'undefined',
+        assert.notEqual(typeof queueName, 'undefined',
             'Consumer must have queue to consume from specified');
 
-        assert(typeof consume === 'function',
+        assert.equal(typeof consume, 'function',
             'Consumer must have "consume(payload, job)" function specified');
 
         const channel = transport.addChannel(channelName);
+        const noAck = consumerOptions.noAck;
 
         channel.addSetup(() => {
-
             return channel.assertQueue(queueName, queueOptions)
                 .then(asserted => {
 
-                    if (routingPatterns) {
-                        routingPatterns.forEach(routingPattern => {
-                            channel.bindQueue(
-                                asserted.queue,
-                                exchangeName,
-                                routingPattern
-                            )
-                                .then(() => {
-                                    debug('queue "%s" bound to "%s" routed as "%s"',
-                                        asserted.queue,
-                                        exchangeName,
-                                        routingPattern);
-                                });
-                        });
-                    } else if (queueName === '') {
+                    console.log('routingPatterns', routingPatterns);
+                    routingPatterns.forEach(routingPattern => {
+                        channel.bindQueue(
+                            asserted.queue,
+                            exchangeName,
+                            routingPattern
+                        )
+                            .then(() => {
+                                debug('queue "%s" bound to "%s" routed as "%s"',
+                                    asserted.queue,
+                                    exchangeName,
+                                    routingPattern);
+                            });
+                    });
+
+                    if (queueName === '') {
                         // bind exclusive queues to exchanges to be able to use
                         // producer(payload, generatedQueue);
                         channel.bindQueue(
@@ -113,6 +119,6 @@ function createConsumerFabric(transport) {
 
         }
 
-    }
+    };
 }
 

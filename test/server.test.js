@@ -71,8 +71,8 @@ describe('server', () => {
 
         after(() => transport.close());
 
-        it('can produce results asyncronously', (done) => {
-            client(1, null, { context: { say: 'hello' } });
+        it.only('can produce results asyncronously', (done) => {
+            client(1, { context: { say: 'hello' } });
             setTimeout(() => {
                 expect(result1).toEqual('hola');
                 done();

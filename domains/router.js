@@ -7,17 +7,13 @@ module.exports = createRouterFabric;
 
 function createRouterFabric(transport) {
 
-    return {
-        declare
-    };
-
     /**
      * @param spec {Object}
      *  - getContextId
      *  - producer
      *  - routes
      */
-    function declare(spec) {
+    return function createRouter(spec) {
         const {
             channelName,
             exchangeName,
@@ -67,6 +63,6 @@ function createRouterFabric(transport) {
 
             return null;
         }
-    }
+    };
 
 }
