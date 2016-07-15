@@ -17,6 +17,8 @@ function channel(channelName) {
     let prefetchCount = DEFAULT_PREFETCH;
     let prefetchIsGlobal = false;
 
+    const setupHooks = [];
+    const bindingHooks = [];
 
     const channelWrapper = Object.assign(standardChannelInterface(), {
         events,
@@ -31,8 +33,9 @@ function channel(channelName) {
             return amqpChannel.bindQueue(queueName, exchangeName, route, options);
         },
 
+        addSetup: fn => setupHooks.push(fn),
+        addBinding: fn => bindingHooks.push(fn),
         getSettings: () => ({ prefetchCount, prefetchIsGlobal }),
-
         bind,
         assertOpenChannel,
 
@@ -44,18 +47,27 @@ function channel(channelName) {
     function standardChannelInterface() {
         const slice = Array.prototype.slice;
         return [
+            'assertExchange',
             'assertQueue',
             'purgeQueue',
             'checkQueue',
             'deleteQueue',
-            'publish', 'sendToQueue', 'consume',
-            'cancel', 'get', 'ack', 'ackAll',
-            'nack', 'nackAll', 'reject', 'prefetch', 'recover'
+            'publish',
+            'sendToQueue',
+            'consume',
+            'cancel',
+            'get',
+            'ack',
+            'ackAll',
+            'nack',
+            'nackAll',
+            'reject',
+            'prefetch',
+            'recover',
+            'close'
         ].reduce((wrap, name) => {
             wrap[name] = function() {
-                if (name === 'assertQueue') {
-                    debug('assertQueue', arguments[0], arguments[1]);
-                }
+                debug(name + ' ' + arguments[0]);
                 return get()[name].apply(
                     amqpChannel,
                     slice.call(arguments));
@@ -80,10 +92,9 @@ function channel(channelName) {
      * asserts queues and set up channel (prefetch, etc.).
      *
      * @param channel {AMQPChannel(amqplib)} - amqp channel.
-     * @param queues {Array} - queue descriptors.
      * @param settings {Object} - { prefetch: Number }.
      */
-    function bind(channel, queues, settings) {
+    function bind(channel, settings) {
 
         amqpChannel = channel;
 
@@ -100,6 +111,9 @@ function channel(channelName) {
             events.emit('close', channelErrored);
             amqpChannel = null;
         });
+
+        // channel.on('return', () => {
+        // });
 
         if (settings.prefetch) {
             prefetchCount = settings.prefetch;
@@ -119,63 +133,12 @@ function channel(channelName) {
         debug('setting prefetch to %d, global=%s', prefetchCount, prefetchIsGlobal);
 
         return channel.prefetch(prefetchCount, prefetchIsGlobal)
-            .then(() => assertQueues(queues))
+            .then(() => Promise.all(setupHooks.map(fn => fn())))
+            .then(() => Promise.all(bindingHooks.map(fn => fn())))
             .then(() => {
                 debug('channel %s ready', channelName);
             });
     }
 
-    /**
-     * Assert known queues
-     * @param queues {Array} - array of queue specs:
-     *  - {exchange, exchangeType, autogenerateQueues, routes, options}
-     */
-    function assertQueues(queues) {
-        if (!queues.length) {
-            return;
-        }
-
-        const ch = amqpChannel;
-
-        debug('asserting %d exchanges', queues.length);
-        return queues.reduce(
-            (flow, q) => flow.then(() => ch.assertExchange(
-                    q.exchange,
-                    q.exchangeType || 'direct'
-                )
-                    .then(() => {
-                        if (q.routes) {
-                            return assertRoutes(q.routes, q);
-                        }
-                    })
-            ),
-            Promise.resolve()
-        ).then(() => debug('%d exchanges asserted', queues.length));
-
-        function assertRoutes(routes, q) {
-
-            return Promise.all(routes.map(route => {
-                const queueName = q.autogenerateQueues
-                    ? ''
-                    : [ q.exchange, route ].join('.');
-
-                q.queueNames = {};
-
-                return channelWrapper.assertQueue(
-                    queueName,
-                    q.options
-                )
-                    .then(asserted => {
-                        q.queueNames[route] = asserted.queue;
-                        return channelWrapper.bindQueue(
-                            asserted.queue,
-                            q.exchange,
-                            route,
-                            q.options
-                        );
-                    });
-            }));
-        }
-    }
 }
 

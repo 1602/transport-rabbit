@@ -49,6 +49,7 @@ function init(settings) {
     }
 
     function close() {
+        debug('connection closed manually');
         reconnect = false;
         if (isDisconnected()) {
             events.emit('close');

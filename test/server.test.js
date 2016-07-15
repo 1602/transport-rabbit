@@ -53,13 +53,16 @@ describe('server', () => {
 
             });
 
-            transport.createCommandServer('task', (msg, job) => {
-                job.accept();
-                if (msg) {
-                    return 'hola';
-                }
+            transport.createCommandServer('task', {
+                handler(msg, job) {
+                    job.ack();
 
-                throw new Error('Oops');
+                    if (msg) {
+                        return 'hola';
+                    }
+
+                    throw new Error('Oops');
+                }
             });
 
             return transport.getReady();
@@ -69,9 +72,10 @@ describe('server', () => {
         after(() => transport.close());
 
         it('can produce results asyncronously', (done) => {
-            client(1, null, { context: { say: 'hello' } });
+            client(1, { context: { say: 'hello' } });
             setTimeout(() => {
                 expect(result1).toEqual('hola');
+                expect(context1).toEqual({ say: 'hello' });
                 done();
             }, 300);
         });
@@ -90,7 +94,7 @@ describe('server', () => {
             Job.find = () => Promise.resolve(null);
             result1 = null;
             context1 = 'something';
-            client(1, null, { context: { a: 1 } });
+            client(1, { context: { a: 1 } });
             setTimeout(() => {
                 Job.find = find;
                 expect(result1).toEqual('hola');
@@ -99,61 +103,22 @@ describe('server', () => {
             }, 300);
         });
 
-    });
-
-    context('channel about to close', () => {
-
-        it.skip('handler will not be called with null', (done) => {
-            const transport = queueTransport({ url: rabbitUrl });
-            const get = transport.channel.get;
-            let channel;
-            transport.channel.get = function() {
-                if (channel) {
-                    return channel;
-                }
-                channel = get();
-                const consume = channel.consume;
-                channel.consume = function(queue, fn) {
-                    return consume.call(channel, queue, function() {
-                        setTimeout(() => {
-                            transport.close();
-                            if (defaultHandlerCalled) {
-                                done(new Error('Handler called unexpectedly'));
-                            } else {
-                                done();
-                            }
-                        }, 10);
-                        fn(null);
-                    });
-                };
-                return channel;
+        it('should continue to work when context throws', (done) => {
+            const find = Job.find;
+            Job.find = () => {
+                throw new Error('Boom');
             };
-
-            const send = transport.client({
-                produce: {
-                    queue: {
-                        exchange: 'nothing-special',
-                        routes: [ 'default' ]
-                    }
-                }
-            });
-
-            let defaultHandlerCalled = false;
-
-            transport.server({
-                consume: {
-                    queue: {
-                        exchange: 'nothing-special',
-                        routes: [ 'default' ]
-                    }
-                },
-                handler: {
-                    default: () => defaultHandlerCalled = true
-                }
-            });
-
-            transport.getReady().then(() => send('msg'));
+            result1 = null;
+            context1 = 'something';
+            client(1, { context: { a: 1 } });
+            setTimeout(() => {
+                Job.find = find;
+                expect(result1).toEqual('hola');
+                expect(context1).toEqual(null);
+                done();
+            }, 300);
         });
+
     });
 
     describe('ack', () => {
@@ -166,8 +131,10 @@ describe('server', () => {
             transport = queueTransport({ url: rabbitUrl });
             send = transport.createCommandSender('task-donotcare');
 
-            transport.createCommandServer('task-donotcare', function() {
-                return handler.apply(null, [].slice.call(arguments));
+            transport.createCommandServer('task-donotcare', {
+                handler: function() {
+                    return handler.apply(null, [].slice.call(arguments));
+                }
             });
 
             return transport.getReady();
@@ -181,17 +148,16 @@ describe('server', () => {
             let rejectedOnce = false;
             handler = (param, job) => {
                 expect(param).toBe('hello');
-                expect(job.context).toBe(null);
-                expect(typeof job.accept).toBe('function');
-                expect(typeof job.reject).toBe('function');
+                expect(typeof job.ack).toBe('function');
+                expect(typeof job.nack).toBe('function');
                 if (rejectedOnce) {
-                    job.accept();
-                    expect(job.accept).toNotThrow();
+                    job.ack();
+                    expect(job.ack).toNotThrow();
                     done();
                     return;
                 }
                 rejectedOnce = true;
-                job.reject();
+                job.nack();
             };
             send('hello');
         });

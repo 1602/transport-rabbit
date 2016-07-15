@@ -18,37 +18,12 @@ describe('rpc', () => {
         client = queueTransport(clientSettings);
         server = queueTransport({ url: rabbitUrl });
 
-        runFiboRpc = client.rpc({
-            produce: {
-                queue: {
-                    exchange: 'fibonacci',
-                    routes: [ 'query' ],
-                    options: {
-                        exclusive: false,
-                        durable: true,
-                        autoDelete: false
-                    }
-                }
-            },
-        });
+        runFiboRpc = client.rpcClient('fibonacci');
 
-        server.server({
-            consume: {
-                queue: {
-                    exchange: 'fibonacci',
-                    routes: [ 'query' ],
-                    options: {
-                        exclusive: false,
-                        durable: true,
-                        autoDelete: false
-                    }
-                }
-            },
-            handler: {
-                query: opts => {
-                    return Promise.resolve(opts.n)
-                        .then(n => calculateNonRecursive(n));
-                }
+        server.rpcServer('fibonacci', {
+            handler(payload, job) {
+                job.ack();
+                return calculateNonRecursive(payload.n);
             }
         });
 
@@ -58,7 +33,10 @@ describe('rpc', () => {
         ]);
     });
 
-    afterEach(() => Promise.all([client.close(), server.close()]));
+    afterEach(() => Promise.all([
+        client.close(),
+        server.close()
+    ]));
 
     it('should work', () => {
         delete clientSettings.rpcTimeout;

@@ -3,11 +3,12 @@
   "version": "0.3.1",
   "description": "Transport layer domain for rabbit",
   "main": "index.js",
+  "engines": { "node" : ">=6.2" },
   "scripts": {
-    "start-test-rabbit": "docker run -d -p 5672:5672 --name test-rabbit-server --hostname test-rabbit-server rabbitmq:3.6-management",
-    "test": "mocha --no-exit --reporter spec --bail --check-leaks test/",
+    "start-test-rabbit": "docker run -d -p 5672:5672 -p 15672:15672 --name test-rabbit-server --hostname test-rabbit-server rabbitmq:3.6-management",
+    "test": "mocha --no-exit --reporter list --bail --check-leaks test/",
     "test-ci": "istanbul cover node_modules/mocha/bin/_mocha --report lcovonly -- --reporter spec --check-leaks test/",
-    "test-coverage": "istanbul cover node_modules/.bin/_mocha -- --reporter landing --no-exit --check-leaks test/",
+    "test-coverage": "istanbul cover node_modules/.bin/_mocha -- --reporter dot --no-exit --check-leaks test/",
     "test-docker": "./run-test.sh"
   },
   "author": "Anatoliy Chakkaev",
@@ -20,6 +21,6 @@
   "devDependencies": {
     "expect": "^1.20.1",
     "mocha": "^2.5.3",
-    "istanbul": "^0.4.4"
+    "istanbul": "next"
   }
 }

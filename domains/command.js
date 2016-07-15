@@ -1,10 +1,9 @@
 'use strict';
 
 const assert = require('assert');
+const debug = require('debug')('rabbit:command');
 
-module.exports = function createCommandFabric(transportLink) {
-
-    const transport = transportLink;
+module.exports = function createCommandFabric(transport) {
 
     return {
         createCommandSender,
@@ -16,83 +15,145 @@ module.exports = function createCommandFabric(transportLink) {
 
         opts = opts || {};
 
-        return transport.client({
-            produce: {
-                channel: opts.channel,
-                queue: {
-                    exchange: exchangeName,
-                    exchangeType: 'direct',
-                    routes: [ 'command' ],
-                    options: {
-                        exclusive: false,
-                        durable: true,
-                        autoDelete: false
-                    }
-                }
-            },
-            getContextId: opts.getContextId
+        const {
+            channelName,
+            getContextId
+        } = opts;
+
+        const channel = transport.getChannel(channelName);
+
+        channel.addBinding(() => {
+            return channel.bindQueue(
+                exchangeName + '.command',
+                exchangeName,
+                'command'
+            );
         });
+
+        return transport.client({
+            channelName,
+            exchangeName,
+            exchangeType: 'direct',
+            getContextId,
+            route: 'command'
+        });
+
     }
 
-    function createCommandServer(exchangeName, handler, opts) {
-        opts = opts || {};
-        const schema = {
-            consume: {
-                channel: opts.channel,
-                queue: {
-                    exchange: exchangeName,
-                    exchangeType: 'direct',
-                    routes: [ 'command' ],
-                    options: {
-                        exclusive: false,
-                        durable: true,
-                        autoDelete: false
-                    }
-                }
-            },
-            handler: {
-                command: handler
-            },
-            produce: {
-                channel: opts.channel,
-                queue: {
-                    exchange: exchangeName,
-                    routes: [ 'result', 'error' ],
-                    options: {
-                        exclusive: false,
-                        durable: true,
-                        autoDelete: false
-                    }
-                }
-            }
-        };
+    function createCommandServer(exchangeName, opts) {
+        assert.equal(typeof exchangeName, 'string',
+            'Command server requires exchangeName: String to be specified');
 
-        if (opts.produceResults === false) {
-            delete schema.produce;
+        assert.equal(typeof opts, 'object',
+            'Command server requires opts: Object to be specified');
+
+        const {
+            channelName,
+            handler
+        } = opts;
+
+        assert.equal(typeof handler, 'function',
+            'Command server requires opts.handler: Function/2 to be specified');
+
+        let producer = null;
+
+        if (opts.produceResults !== false) {
+            producer = transport.producer({
+                channelName,
+                exchangeName
+            });
         }
 
-        return transport.server(schema);
+        return transport.consumer({
+            channelName,
+            exchangeName,
+            exchangeType: 'direct',
+            queueName: exchangeName + '.command',
+            queueOptions: {
+                exclusive: false,
+                durable: true,
+                autoDelete: false
+            },
+            routes: [ 'command' ],
+            consume(payload, job) {
+                const correlationId = job.msg.properties.correlationId;
+
+                if (!producer) {
+                    try {
+                        handler(payload, job);
+                    } catch(err) {
+                        // TODO: reconsider
+                        console.error(err);
+                    }
+                    return;
+                }
+
+                Promise.resolve()
+                    .then(() => handler(payload, job))
+                    .then(result => producer(result, 'result', {
+                        correlationId
+                    }))
+                    .catch(err => producer({
+                        message: err.message,
+                        stack: err.stack,
+                        details: err.details
+                    }, 'error', {
+                        correlationId
+                    }));
+            }
+        });
+
     }
 
     function createCommandResultRecipient(exchangeName, opts) {
-
         assert(opts, 'Required "opts" argument is missing');
 
-        transport.server({
-            consume: {
-                channel: opts.channel,
-                queue: {
-                    exchange: exchangeName,
-                    routes: [ 'result', 'error' ],
-                },
-                options: { noAck: true }
-            },
-            handler: {
-                result: opts.result,
-                error: opts.error,
-            },
-            getContextById: opts.getContextById
-        });
+        const {
+            result,
+            error,
+            channelName,
+            getContextById
+        } = opts;
+
+        createConsumer('result', result);
+        createConsumer('error', error);
+
+        function createConsumer(type, handler) {
+            transport.consumer({
+                channelName,
+                exchangeName,
+                queueName: [ exchangeName, type ].join('.'),
+                routingPatterns: [ type ],
+                consumerOptions: { noAck: true },
+                consume(payload, job) {
+                    const {
+                        msg,
+                        ack,
+                        nack
+                    } = job;
+
+                    getContext(msg.properties.correlationId)
+                        .then(context => {
+                            handler(payload, { context, ack, nack });
+                        });
+                }
+            });
+        }
+
+        function getContext(correlationId) {
+            if ('function' !== typeof getContextById || !correlationId) {
+                return Promise.resolve(null);
+            }
+
+            return Promise.resolve()
+                .then(() => getContextById(correlationId))
+                .catch(err => {
+                    debug('error while retrieving context', err.stack);
+                    return null;
+                });
+        }
+
+
     }
 
 };

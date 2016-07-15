@@ -17,14 +17,11 @@ describe('client', () => {
             url: rabbitUrl
         });
 
-        enqueueMessage = transport.client({
-            produce: {
-                queue: {
-                    exchange: 'log',
-                    routes: [ 'info', 'warn', 'error' ]
-                }
-            },
-            getContextId: context => Job.create({ context }).then(job => String(job.id))
+        enqueueMessage = transport.router({
+            exchangeName: 'log',
+            routes: [ 'info', 'warn', 'error' ],
+            getContextId: context => Job.create({ context })
+                .then(job => String(job.id))
         });
 
         return transport.getReady()
@@ -54,22 +51,26 @@ describe('client', () => {
     });
 
     it('should support context', () => {
-        return enqueueMessage('log message', 'error', { context: { hello: 'world' } })
+        return enqueueMessage('log message', 'info', {
+            context: { hello: 'world' }
+        })
             .then(() => expect(jobs.length).toBe(1));
     });
 
-    it('should throw when called to early', () => {
+    it('should throw when called too early', () => {
         return transport.close()
             .then(() => {
                 transport = queueTransport({ url: rabbitUrl });
-                enqueueMessage = transport.client({
-                    produce: {
-                        queue: {
-                            exchange: 'log',
-                            routes: [ 'info', 'warn', 'error' ]
-                        }
-                    }
+                const producer = transport.producer({
+                    exchangeName: 'log'
                 });
+
+                enqueueMessage = transport.router({
+                    producer,
+                    exchangeName: 'log',
+                    routes: [ 'info', 'warn', 'error' ],
+                });
+
                 expect(() => enqueueMessage('hello', 'warn')).toThrow('Client is not connected to channel');
                 return transport.getReady();
             });

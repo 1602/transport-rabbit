@@ -8,10 +8,6 @@ const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.101:5672';
 
 describe('channel', () => {
 
-    it('should send messages to queue');
-
-    it('should publish messages to exchange');
-
     it('should allow to take care of stream throughput');
 
     describe('#prefetch', () => {
@@ -43,12 +39,13 @@ describe('channel', () => {
                 startServer('alpha', msg => alphaHello = msg);
                 startServer('bravo', msg => bravoHello = msg);
 
-                function startServer(channel, fn) {
-                    transport.createCommandServer('task', (msg, job) => {
-                        fn(msg);
-                        setTimeout(job.accept, 150);
-                    }, {
-                        channel,
+                function startServer(channelName, fn) {
+                    transport.createCommandServer('task', {
+                        handler(msg, job) {
+                            fn(msg);
+                            setTimeout(job.ack, 150);
+                        },
+                        channelName,
                         produceResults: false
                     });
                 }

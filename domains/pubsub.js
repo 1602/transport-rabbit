@@ -1,41 +1,42 @@
 'use strict';
 
-module.exports = function(transportLink) {
+const assert = require('assert');
 
-    const transport = transportLink;
+module.exports = function(transport) {
 
     return {
-        createBroadcaster,
-        createReceiver
+        createPublisher,
+        createSubscriber
     };
 
-    function createBroadcaster(exchangeName) {
+    function createPublisher(exchangeName) {
+        assert(typeof exchangeName === 'string',
+            'Receiver requires exchangeName: String');
+
         return transport.client({
-            produce: {
-                queue: {
-                    exchange: exchangeName,
-                    exchangeType: 'fanout'
-                }
-            }
+            exchangeName,
+            exchangeType: 'fanout',
+            route: 'default'
         });
     }
 
-    function createReceiver(exchangeName, handler) {
-        return transport.server({
-            consume: {
-                queue: {
-                    exchange: exchangeName,
-                    exchangeType: 'fanout',
-                    routes: [ 'default' ],
-                    autogenerateQueues: true,
-                    options: {
-                        exclusive: true
-                    }
-                }
+    function createSubscriber(exchangeName, consume) {
+        assert(typeof exchangeName === 'string',
+            'Receiver requires exchangeName: String');
+        assert(typeof consume === 'function',
+            'Receiver requires exchangeName: Function/2');
+
+        return transport.consumer({
+            exchangeName,
+            exchangeType: 'fanout',
+            queueName: '',
+            routingPatterns: [ 'default' ],
+            queueOptions: {
+                exclusive: true,
+                durable: false,
+                autoDelete: true
             },
-            handler: {
-                default: handler
-            }
+            consume
         });
     }
 

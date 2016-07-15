@@ -8,17 +8,17 @@ const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.101:5672';
 describe('pubsub', () => {
 
     let transport;
-    let produce;
+    let publish;
     const results1 = [];
     const results2 = [];
 
     before(() => {
         transport = queueTransport({ url: rabbitUrl });
 
-        produce = transport.broadcaster('broadcast-fanout');
+        publish = transport.publisher('broadcast-fanout');
 
-        transport.receiver('broadcast-fanout', res => results1.push(res));
-        transport.receiver('broadcast-fanout', res => results2.push(res));
+        transport.subscriber('broadcast-fanout', res => results1.push(res));
+        transport.subscriber('broadcast-fanout', res => results2.push(res));
 
         return transport.getReady();
     });
@@ -26,7 +26,7 @@ describe('pubsub', () => {
     after(() => transport.close());
 
     it('should receive message to both queues', () => {
-        produce('message');
+        publish('message');
         return new Promise(r => setTimeout(r, 300))
             .then(() => {
                 expect(results1[0]).toBe('message');

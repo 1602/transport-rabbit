@@ -86,13 +86,14 @@ describe('connection', () => {
 
     });
 
-    it.skip('should close connection when channel can not be opened', done => {
+    it('should close connection when channel can not be opened', done => {
         transport = queueTransport({ url: rabbitUrl });
         const close = transport.connection.close;
         const createChannel = transport.connection.createChannel;
 
         transport.connection.createChannel = () =>
             Promise.reject(new Error('Too many channels opened'));
+
         transport.connection.close = () => {
             transport.connection.createChannel = createChannel;
             transport.connection.close = close;
@@ -108,7 +109,7 @@ describe('connection', () => {
 
         transport.connection.createChannel = () =>
             Promise.reject(new Error('Too many channels opened'));
-        transport.events.on('error', err => {
+        transport.events.once('error', err => {
             expect(err.message).toBe('Too many channels opened');
             transport.connection.createChannel = createChannel;
             done();
