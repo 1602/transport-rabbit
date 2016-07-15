@@ -42,38 +42,38 @@ function createConsumerFabric(transport) {
 
         channel.addSetup(() => {
             return channel.assertQueue(queueName, queueOptions)
-                .then(asserted => {
-
-                    routingPatterns.forEach(routingPattern => {
-                        channel.bindQueue(
-                            asserted.queue,
-                            exchangeName,
-                            routingPattern
-                        )
-                            .then(() => {
-                                debug('queue "%s" bound to "%s" routed as "%s"',
-                                    asserted.queue,
-                                    exchangeName,
-                                    routingPattern);
-                            });
-                    });
-
+                .then(asserted => assertedQueueName = asserted.queue)
+                .then(() => Promise.all(routingPatterns.map(routingPattern =>
+                    channel.bindQueue(
+                        assertedQueueName,
+                        exchangeName,
+                        routingPattern
+                    )
+                        .then(() => {
+                            debug('queue "%s" bound to "%s" routed as "%s"',
+                                assertedQueueName,
+                                exchangeName,
+                                routingPattern);
+                        })
+                ))
+                .then(() => {
                     if (queueName === '') {
                         // bind exclusive queues to exchanges to be able to use
                         // producer(payload, generatedQueue);
-                        channel.bindQueue(
-                            asserted.queue,
+                        return channel.bindQueue(
+                            assertedQueueName,
                             exchangeName,
-                            asserted.queue
+                            assertedQueueName
                         );
                     }
-
-                    assertedQueueName = asserted.queue;
-
-                    return channel.consume(asserted.queue, handler, consumerOptions)
-                        .then(() => debug('ready to consume "%s" via %s channel',
-                              asserted.queue, channelName));
-                });
+                })
+                .then(() => channel.consume(
+                    assertedQueueName,
+                    handler,
+                    consumerOptions
+                ))
+                .then(() => debug('ready to consume "%s" via %s channel',
+                      assertedQueueName, channelName)));
         });
 
         return {
