@@ -31,7 +31,6 @@ function initTransport(settings) {
         addQueue,
         addChannel,
         getChannel: name => getChannel(name).wrap,
-        getChannelQueues: name => getChannel(name).queues,
         isConnected: () => connection.isConnected(),
         assertedQueues: Object.create(null),
     };
@@ -49,6 +48,10 @@ function initTransport(settings) {
     addChannel('default');
     transport.queue = queue(transport, 'default');
 
+    transport.producer = spec => createProducerFabric(transport)(spec);
+
+    transport.consumer = spec => createConsumerFabric(transport)(spec);
+
     const rpc = createRpcFabric(transport, settings);
     transport.rpc = spec => rpc.declare(spec);
 
@@ -57,12 +60,6 @@ function initTransport(settings) {
 
     const router = createRouterFabric(transport);
     transport.router = spec => router.declare(spec);
-
-    const producer = createProducerFabric(transport);
-    transport.producer = spec => producer.declare(spec);
-
-    const consumer = createConsumerFabric(transport);
-    transport.consumer = spec => consumer.declare(spec);
 
     const server = createServerFabric(transport);
     transport.intermediateServer = spec => server.declareIntermediateServer(spec);

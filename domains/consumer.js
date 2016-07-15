@@ -7,10 +7,6 @@ const debug = require('debug')('rabbit:consumer');
 
 function createConsumerFabric(transport) {
 
-    return {
-        declare
-    };
-
     /**
      * @param spec {Object}:
      *  - queueName {String} - name of queue
@@ -24,7 +20,7 @@ function createConsumerFabric(transport) {
      *  - consumerOptions {Object} - options for ch.consume (defaults to {})
      *  - channelName {String} - name of channel (optional, defaults to 'default')
      */
-    function declare(spec) {
+    return function createConsumer(spec) {
         const {
             queueName,
             exchangeName,

@@ -7,10 +7,6 @@ module.exports = createProducerFabric;
 
 function createProducerFabric(transport) {
 
-    return {
-        declare
-    };
-
     /**
      * @param spec {Object}:
      *  - exchangeName {String} - name of exchange
@@ -18,7 +14,7 @@ function createProducerFabric(transport) {
      *  - exchangeOptions {Object} - options for assertExchange
      *  - channelName {String} - name of channel (optional, defaults to 'default')
      */
-    function declare(spec) {
+    return function createProducer(spec) {
         const {
             exchangeName,
             exchangeType = 'direct',
@@ -39,7 +35,7 @@ function createProducerFabric(transport) {
             );
         });
 
-        return function send(payload, toRoute, opts) {
+        return function publish(payload, toRoute, opts) {
 
             chan.assertOpenChannel();
 
