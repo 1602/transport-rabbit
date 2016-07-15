@@ -21,6 +21,6 @@
   "devDependencies": {
     "expect": "^1.20.1",
     "mocha": "^2.5.3",
-    "istanbul": "^0.4.4"
+    "istanbul": "next"
   }
 }
