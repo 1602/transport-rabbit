@@ -35,7 +35,7 @@ function createRouterFabric(transport) {
         channel.addSetup(() => {
             return Promise.all(routes.map(route => {
                 const queueName = [ exchangeName, route ].join('.');
-                channel.assertQueue(queueName, queueOptions)
+                return channel.assertQueue(queueName, queueOptions)
                     .then(() => channel.bindQueue(
                         queueName,
                         exchangeName,
