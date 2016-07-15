@@ -18,14 +18,17 @@ function createRouterFabric(transport) {
             channelName,
             exchangeName,
             getContextId,
-            producer,
             routes,
             queueOptions
         } = spec;
 
         assert(exchangeName, 'Router must have exchangeName specified');
-        assert(producer, 'Router must have producer specified');
         assert(routes, 'Router must have routes specified');
+
+        const producer = transport.producer({
+            channelName,
+            exchangeName
+        });
 
         const channel = transport.addChannel(channelName);
 
