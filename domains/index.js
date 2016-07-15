@@ -34,7 +34,7 @@ function initTransport(settings) {
                 .then(() => connection.close());
         },
         addChannel,
-        getChannel: name => getChannel(name).wrap,
+        getChannel: name => getChannel(name),
         isConnected: () => connection.isConnected(),
         assertedQueues: Object.create(null),
     };
@@ -75,12 +75,6 @@ function initTransport(settings) {
                 debug('init "%s" channel', name);
                 const chan = transport.getChannel(name);
                 return connection.createChannel()
-                    // .catch(err => {
-                        // might happen if more than MAX_CHANNELS channels created
-                        // 65536 by default in rabbit version 3
-                        // debug('Error while creating channel. Closing connection.', err);
-                        // connection.close();
-                    // })
                     .then(ch => chan.bind(ch, settings));
             }))
             .then(() => transport.events.emit('ready'))
@@ -108,13 +102,10 @@ function initTransport(settings) {
 
         if (!(channelName in channels)) {
             debug('creating wrapper for %s channel', channelName);
-            channels[channelName] = {
-                queues: [],
-                wrap: createChannel(channelName)
-            };
+            channels[channelName] = createChannel(channelName);
         }
 
-        return channels[channelName].wrap;
+        return channels[channelName];
     }
 }
 
