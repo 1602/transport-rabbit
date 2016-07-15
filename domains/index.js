@@ -26,7 +26,7 @@ function initTransport(settings) {
 
     const transport = {
         events,
-        getReady: () => new Promise(resolve => events.on('ready', resolve)),
+        getReady: () => new Promise(resolve => events.once('ready', resolve)),
         close: () => {
             return connection.close();
         },
