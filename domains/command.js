@@ -79,12 +79,7 @@ module.exports = function createCommandFabric(transport) {
                 const correlationId = job.msg.properties.correlationId;
 
                 if (!producer) {
-                    try {
-                        handler(payload, job);
-                    } catch(err) {
-                        // TODO: reconsider
-                        console.error(err);
-                    }
+                    handler(payload, job);
                     return;
                 }
 

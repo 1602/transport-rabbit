@@ -45,12 +45,14 @@ describe('rpc', () => {
 
     it('should end by timeout', () => {
         clientSettings.rpcTimeout = 100;
+        runFiboRpc({n: 500 });
         return runFiboRpc({ n: 500 })
             .then(() => {
                 throw new Error('Unexpected success');
             })
             .catch(err => {
-                expect(err.message).toEqual('Awaiting response handler expired by timeout');
+                expect(err.message)
+                    .toEqual('Awaiting response handler expired by timeout');
             });
     });
 

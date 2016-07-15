@@ -15,14 +15,18 @@ function createRpcClientFabric(transport, settings) {
     const awaitingResponseHandlers = Object.create(null);
     const awaitingExpiration = [];
     const rpcExpirationInterval = settings.rpcExpirationInterval || DEFAULT_RPC_EXPIRATION_INTERVAL;
+
     let expirationInterval;
 
     // stop expiration watchdog when transport closes
-    transport.events.on('close', () => {
+    transport.events.on('close', stopExpirationInterval);
+
+    function stopExpirationInterval() {
         if (expirationInterval) {
             clearInterval(expirationInterval);
+            expirationInterval = null;
         }
-    });
+    }
 
     return function declare(exchangeName, opts) {
 
@@ -97,13 +101,17 @@ function createRpcClientFabric(transport, settings) {
     function startExpirationInterval() {
         debug('Start expiration interval each %d ms', rpcExpirationInterval);
         return setInterval(() => {
-            debug('Expire rpc');
+            debug('expire rpc: check');
             const now = Date.now();
             let expireMe;
             while (awaitingExpiration[0] && awaitingExpiration[0].expireAt <= now) {
+                debug('expire rpc: expire handler by timeout');
                 expireMe = awaitingExpiration.shift();
                 expireMe.deferred.reject(new Error('Awaiting response handler expired by timeout'));
                 delete awaitingResponseHandlers[expireMe.correlationId];
+                if (awaitingExpiration.length === 0) {
+                    stopExpirationInterval();
+                }
             }
         }, rpcExpirationInterval);
     }

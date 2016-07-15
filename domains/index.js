@@ -14,14 +14,13 @@ const createPubsubFabric = require('./pubsub');
 const createCommandFabric = require('./command');
 const queue = require('./queue');
 const debug = require('debug')('rabbit:transport');
+const EventEmitter = require('events');
 
 module.exports = initTransport;
 
 function initTransport(settings) {
 
     const channels = Object.create(null);
-
-    const EventEmitter = require('events');
     const events = new EventEmitter();
 
     const transport = {

@@ -16,7 +16,7 @@ function createClientFabric(transport) {
         const {
             channelName,
             exchangeName,
-            exchangeType = 'direct',
+            exchangeType,
 
             getContextId,
             route
