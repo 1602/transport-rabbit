@@ -4,7 +4,8 @@ const assert = require('assert');
 
 const createConnection = require('./connection');
 const createChannel = require('./channel');
-const createRpcFabric = require('./rpc');
+const createRpcClientFabric = require('./rpc/client');
+const createRpcServerFabric = require('./rpc/server');
 const createClientFabric = require('./client');
 const createRouterFabric = require('./router');
 const createProducerFabric = require('./producer');
@@ -46,22 +47,17 @@ function initTransport(settings) {
     addChannel('default');
     transport.queue = queue(transport, 'default');
 
-    transport.producer = spec => createProducerFabric(transport)(spec);
-
-    transport.consumer = spec => createConsumerFabric(transport)(spec);
-
     transport.client = createClientFabric(transport);
     transport.router = createRouterFabric(transport);
     transport.producer = createProducerFabric(transport);
     transport.consumer = createConsumerFabric(transport);
 
-    const rpc = createRpcFabric(transport, settings);
-    transport.rpcClient = rpc.declareClient;
-    transport.rpcServer = rpc.declareServer;
+    transport.rpcClient = createRpcClientFabric(transport, settings);
+    transport.rpcServer = createRpcServerFabric(transport, settings);
 
     const pubsub = createPubsubFabric(transport);
-    transport.broadcaster = pubsub.createBroadcaster;
-    transport.receiver = pubsub.createReceiver;
+    transport.publisher = pubsub.createPublisher;
+    transport.subscriber = pubsub.createSubscriber;
 
     const command = createCommandFabric(transport);
     transport.createCommandSender = command.createCommandSender;

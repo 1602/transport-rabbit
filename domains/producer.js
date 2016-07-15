@@ -41,8 +41,6 @@ function createProducerFabric(transport) {
 
             debug('sending msg to exchange "%s" via route "%s", corrId=%s', exchangeName, route, opts && opts.correlationId);
 
-            console.log('payload is', payload);
-
             return chan.publish(
                 exchangeName,
                 route,

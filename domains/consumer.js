@@ -44,7 +44,6 @@ function createConsumerFabric(transport) {
             return channel.assertQueue(queueName, queueOptions)
                 .then(asserted => {
 
-                    console.log('routingPatterns', routingPatterns);
                     routingPatterns.forEach(routingPattern => {
                         channel.bindQueue(
                             asserted.queue,

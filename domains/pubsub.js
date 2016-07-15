@@ -5,11 +5,11 @@ const assert = require('assert');
 module.exports = function(transport) {
 
     return {
-        createBroadcaster,
-        createReceiver
+        createPublisher,
+        createSubscriber
     };
 
-    function createBroadcaster(exchangeName) {
+    function createPublisher(exchangeName) {
         assert(typeof exchangeName === 'string',
             'Receiver requires exchangeName: String');
 
@@ -20,7 +20,7 @@ module.exports = function(transport) {
         });
     }
 
-    function createReceiver(exchangeName, consume) {
+    function createSubscriber(exchangeName, consume) {
         assert(typeof exchangeName === 'string',
             'Receiver requires exchangeName: String');
         assert(typeof consume === 'function',
