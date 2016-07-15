@@ -94,7 +94,23 @@ describe('server', () => {
             Job.find = () => Promise.resolve(null);
             result1 = null;
             context1 = 'something';
-            client(1, null, { context: { a: 1 } });
+            client(1, { context: { a: 1 } });
+            setTimeout(() => {
+                Job.find = find;
+                expect(result1).toEqual('hola');
+                expect(context1).toEqual(null);
+                done();
+            }, 300);
+        });
+
+        it('should continue to work when context throws', (done) => {
+            const find = Job.find;
+            Job.find = () => {
+                throw new Error('Boom');
+            };
+            result1 = null;
+            context1 = 'something';
+            client(1, { context: { a: 1 } });
             setTimeout(() => {
                 Job.find = find;
                 expect(result1).toEqual('hola');

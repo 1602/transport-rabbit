@@ -141,15 +141,12 @@ module.exports = function createCommandFabric(transport) {
         }
 
         function getContext(correlationId) {
-            if ('function' !== typeof getContextById) {
+            if ('function' !== typeof getContextById || !correlationId) {
                 return Promise.resolve(null);
             }
 
-            if (!correlationId) {
-                return Promise.resolve(null);
-            }
-
-            return Promise.resolve(getContextById(correlationId))
+            return Promise.resolve()
+                .then(() => getContextById(correlationId))
                 .catch(err => {
                     debug('error while retrieving context', err.stack);
                     return null;
