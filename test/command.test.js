@@ -17,7 +17,7 @@ Job.find = id => {
     return Promise.resolve(job);
 };
 
-describe('server', () => {
+describe('command', () => {
 
     context('normal flow', () => {
 
