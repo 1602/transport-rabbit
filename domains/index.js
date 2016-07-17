@@ -6,7 +6,6 @@ const createConnection = require('./connection');
 const createChannel = require('./channel');
 const createRpcClientFabric = require('./rpc/client');
 const createRpcServerFabric = require('./rpc/server');
-const createClientFabric = require('./client');
 const createRouterFabric = require('./router');
 const createProducerFabric = require('./producer');
 const createConsumerFabric = require('./consumer');
@@ -48,7 +47,6 @@ function initTransport(settings) {
     assertChannel('default');
     transport.queue = queue(transport, 'default');
 
-    transport.client = createClientFabric(transport);
     transport.router = createRouterFabric(transport);
     transport.producer = createProducerFabric(transport);
     transport.consumer = createConsumerFabric(transport);

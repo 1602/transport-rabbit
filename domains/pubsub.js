@@ -13,11 +13,16 @@ module.exports = function(transport) {
         assert(typeof exchangeName === 'string',
             'Receiver requires exchangeName: String');
 
-        return transport.client({
+        const route = 'default';
+
+        const produce = transport.producer({
             exchangeName,
-            exchangeType: 'fanout',
-            route: 'default'
+            exchangeType: 'fanout'
         });
+
+        return function publish(payload, opts) {
+            produce(payload, route, opts);
+        };
     }
 
     function createSubscriber(exchangeName, consume) {
