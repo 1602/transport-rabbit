@@ -105,15 +105,25 @@ describe('connection', () => {
 
     it('should expose errors thrown during init', done => {
         transport = queueTransport({ url: rabbitUrl });
-        const createChannel = transport.connection.createChannel;
-
         transport.connection.createChannel = () =>
             Promise.reject(new Error('Too many channels opened'));
         transport.events.once('error', err => {
             expect(err.message).toBe('Too many channels opened');
-            transport.connection.createChannel = createChannel;
             done();
         });
+    });
+
+    it('getReady should be idempotent', () => {
+        transport = queueTransport({ url: rabbitUrl });
+        return Promise.resolve()
+            .then(() => transport.getReady())
+            .then(() => transport.getReady());
+    });
+
+    it('close should be idempotent', () => {
+        return Promise.resolve()
+            .then(() => transport.close())
+            .then(() => transport.close());
     });
 
 });
