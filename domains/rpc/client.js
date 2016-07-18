@@ -28,7 +28,7 @@ function createRpcClientFabric(transport, settings) {
         }
     }
 
-    return function declare(exchangeName, opts) {
+    return function createRpcClient(exchangeName, opts) {
 
         assert(typeof exchangeName === 'string',
             'RPC client requires exchangeName: String to be specified');

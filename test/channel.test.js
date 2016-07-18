@@ -34,13 +34,13 @@ describe('channel', () => {
                     }
                 });
 
-                client = transport.createCommandSender('task');
+                client = transport.commandSender('task');
 
                 startServer('alpha', msg => alphaHello = msg);
                 startServer('bravo', msg => bravoHello = msg);
 
                 function startServer(channelName, fn) {
-                    transport.createCommandServer('task', {
+                    transport.commandServer('task', {
                         handler(msg, job) {
                             fn(msg);
                             setTimeout(job.ack, 150);

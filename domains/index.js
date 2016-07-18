@@ -71,9 +71,9 @@ function initTransport(settings) {
     transport.subscriber = pubsub.createSubscriber;
 
     const command = createCommandFabric(transport);
-    transport.createCommandSender = command.createCommandSender;
-    transport.createCommandServer = command.createCommandServer;
-    transport.createCommandResultRecipient = command.createCommandResultRecipient;
+    transport.commandSender = command.createCommandSender;
+    transport.commandServer = command.createCommandServer;
+    transport.commandResultRecipient = command.createCommandResultRecipient;
 
     connection.events.on('connected', () => {
         Promise.all(Object.keys(channels)

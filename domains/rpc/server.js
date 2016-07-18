@@ -4,7 +4,7 @@ const assert = require('assert');
 
 module.exports = function(transport/* , settings */) {
 
-    return function declare(exchangeName, opts) {
+    return function createRpcServer(exchangeName, opts) {
 
         assert.equal(typeof exchangeName, 'string',
             'RPC server requires exchangeName: String to be specified');
