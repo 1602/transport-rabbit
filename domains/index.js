@@ -49,7 +49,7 @@ function initTransport(settings) {
             }
         });
     }
-    
+
     function close() {
         return connection.isConnected() ? connection.close() : Promise.resolve();
     }
