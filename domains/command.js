@@ -15,22 +15,19 @@ module.exports = function createCommandFabric(transport) {
 
         opts = opts || {};
         
-        const route = 'command';
-
         const {
             channelName,
-            getContextId
+            getContextId,
+            route = 'command'
         } = opts;
 
         const channel = transport.getChannel(channelName);
 
-        // TODO (bo) not sure if that's right
-        // TODO (e.g. why producer needs a separate queue anyway?)
         channel.addBinding(() => {
             return channel.bindQueue(
                 exchangeName + '.command',
                 exchangeName,
-                'command'
+                route
             );
         });
         
@@ -65,7 +62,8 @@ module.exports = function createCommandFabric(transport) {
 
         const {
             channelName,
-            handler
+            handler,
+            route = 'command'
         } = opts;
 
         assert.equal(typeof handler, 'function',
@@ -90,7 +88,7 @@ module.exports = function createCommandFabric(transport) {
                 durable: true,
                 autoDelete: false
             },
-            routes: [ 'command' ],
+            routes: [ route ],
             consume(payload, job) {
                 const correlationId = job.msg.properties.correlationId;
 

@@ -28,7 +28,7 @@ function createRpcClientFabric(transport, settings) {
         }
     }
 
-    return function declare(exchangeName, opts) {
+    return function createRpcClient(exchangeName, opts) {
 
         assert(typeof exchangeName === 'string',
             'RPC client requires exchangeName: String to be specified');
@@ -101,7 +101,6 @@ function createRpcClientFabric(transport, settings) {
     function startExpirationInterval() {
         debug('Start expiration interval each %d ms', rpcExpirationInterval);
         return setInterval(() => {
-            debug('expire rpc: check');
             const now = Date.now();
             let expireMe;
             while (awaitingExpiration[0] && awaitingExpiration[0].expireAt <= now) {

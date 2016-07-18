@@ -31,12 +31,12 @@ describe('command', () => {
         before(() => {
             transport = queueTransport({ url: rabbitUrl });
 
-            client = transport.createCommandSender('task', {
+            client = transport.commandSender('task', {
                 getContextId: context => Job.create({ context })
                     .then(job => String(job.id))
             });
 
-            transport.createCommandResultRecipient('task', {
+            transport.commandResultRecipient('task', {
 
                 getContextById: contextId => Job.find(contextId)
                     .then(job => job.context),
@@ -53,7 +53,7 @@ describe('command', () => {
 
             });
 
-            transport.createCommandServer('task', {
+            transport.commandServer('task', {
                 handler(msg, job) {
                     job.ack();
 
@@ -129,9 +129,9 @@ describe('command', () => {
 
         beforeEach(() => {
             transport = queueTransport({ url: rabbitUrl });
-            send = transport.createCommandSender('task-donotcare');
+            send = transport.commandSender('task-donotcare');
 
-            transport.createCommandServer('task-donotcare', {
+            transport.commandServer('task-donotcare', {
                 handler: function() {
                     return handler.apply(null, [].slice.call(arguments));
                 }

@@ -8,9 +8,11 @@ describe('producer', () => {
 
     let transport = null;
 
-    beforeEach(() => transport = queueTransport({
-        url: rabbitUrl
-    }));
+    beforeEach(() => {
+        transport = queueTransport({
+            url: rabbitUrl
+        });
+    });
 
     afterEach(() => transport.close());
 
@@ -31,6 +33,20 @@ describe('producer', () => {
         return transport.getReady()
             .then(() => {
                 expect(exchangeAsserted).toBe(true);
+            });
+    });
+
+    it('should throw when called too early', () => {
+        return transport.getReady()
+            .then(() => transport.close())
+            .then(() => {
+                transport = queueTransport({ url: rabbitUrl });
+                const produce = transport.producer({
+                    exchangeName: 'log'
+                });
+                expect(() => produce('hello', 'warn'))
+                    .toThrow('Client is not connected to channel');
+                return transport.getReady();
             });
     });
 

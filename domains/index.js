@@ -6,7 +6,6 @@ const createConnection = require('./connection');
 const createChannel = require('./channel');
 const createRpcClientFabric = require('./rpc/client');
 const createRpcServerFabric = require('./rpc/server');
-const createRouterFabric = require('./router');
 const createProducerFabric = require('./producer');
 const createConsumerFabric = require('./consumer');
 const createPubsubFabric = require('./pubsub');
@@ -22,16 +21,16 @@ function initTransport(settings) {
     const channels = Object.create(null);
     const events = new EventEmitter();
 
+    let ready = false;
+
     const transport = {
         events,
-        getReady: () => new Promise(resolve => events.once('ready', resolve)),
-        close: () => {
-            return connection.close();
-        },
+        getReady,
+        close,
         assertChannel,
         getChannel: name => getChannel(name),
         isConnected: () => connection.isConnected(),
-        assertedQueues: Object.create(null),
+        assertedQueues: Object.create(null)
     };
 
     function getChannel(name) {
@@ -41,16 +40,29 @@ function initTransport(settings) {
         return channel;
     }
 
+    function getReady() {
+        return new Promise(resolve => {
+            if (ready) {
+                resolve();
+            } else {
+                events.once('ready', resolve);
+            }
+        });
+    }
+
+    function close() {
+        return connection.isConnected() ? connection.close() : Promise.resolve();
+    }
+
     const connection = createConnection(settings);
+    assertChannel('default');
 
     transport.connection = connection;
-    assertChannel('default');
     transport.queue = queue(transport, 'default');
 
-    transport.router = createRouterFabric(transport);
     transport.producer = createProducerFabric(transport);
     transport.consumer = createConsumerFabric(transport);
-
+    
     transport.rpcClient = createRpcClientFabric(transport, settings);
     transport.rpcServer = createRpcServerFabric(transport, settings);
 
@@ -59,9 +71,9 @@ function initTransport(settings) {
     transport.subscriber = pubsub.createSubscriber;
 
     const command = createCommandFabric(transport);
-    transport.createCommandSender = command.createCommandSender;
-    transport.createCommandServer = command.createCommandServer;
-    transport.createCommandResultRecipient = command.createCommandResultRecipient;
+    transport.commandSender = command.createCommandSender;
+    transport.commandServer = command.createCommandServer;
+    transport.commandResultRecipient = command.createCommandResultRecipient;
 
     connection.events.on('connected', () => {
         Promise.all(Object.keys(channels)
@@ -75,7 +87,10 @@ function initTransport(settings) {
                     })
                     .then(ch => chan.bind(ch, settings));
             }))
-            .then(() => transport.events.emit('ready'))
+            .then(() => {
+                ready = true;
+                transport.events.emit('ready');
+            })
             .catch(err => {
                 debug('error during init', err.stack);
                 transport.events.emit('error', err);
@@ -86,12 +101,6 @@ function initTransport(settings) {
         debug('emit close event');
         events.emit('close');
     });
-
-    // channel.events.on('close', channelErrored => {
-    //     if (channelErrored && !connection.isDisconnected()) {
-    //         connection.forceClose();
-    //     }
-    // });
 
     return transport;
 

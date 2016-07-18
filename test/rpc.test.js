@@ -10,17 +10,17 @@ const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.101:5672';
 describe('rpc', () => {
 
     let runFiboRpc;
-    let client;
-    let server;
+    let clientTransport;
+    let serverTransport;
     const clientSettings = { url: rabbitUrl, rpcExpirationInterval: 100 };
 
     beforeEach(() => {
-        client = queueTransport(clientSettings);
-        server = queueTransport({ url: rabbitUrl });
+        clientTransport = queueTransport(clientSettings);
+        serverTransport = queueTransport({ url: rabbitUrl });
 
-        runFiboRpc = client.rpcClient('fibonacci');
+        runFiboRpc = clientTransport.rpcClient('fibonacci');
 
-        server.rpcServer('fibonacci', {
+        serverTransport.rpcServer('fibonacci', {
             handler(payload, job) {
                 job.ack();
                 return calculateNonRecursive(payload.n);
@@ -28,14 +28,14 @@ describe('rpc', () => {
         });
 
         return Promise.all([
-            client.getReady(),
-            server.getReady()
+            clientTransport.getReady(),
+            serverTransport.getReady()
         ]);
     });
 
     afterEach(() => Promise.all([
-        client.close(),
-        server.close()
+        clientTransport.close(),
+        serverTransport.close()
     ]));
 
     it('should work', () => {
@@ -45,7 +45,7 @@ describe('rpc', () => {
 
     it('should end by timeout', () => {
         clientSettings.rpcTimeout = 100;
-        runFiboRpc({n: 500 });
+        runFiboRpc({ n: 500 });
         return runFiboRpc({ n: 500 })
             .then(() => {
                 throw new Error('Unexpected success');
