@@ -14,6 +14,8 @@ module.exports = function createCommandFabric(transport) {
     function createCommandSender(exchangeName, opts) {
 
         opts = opts || {};
+        
+        const route = 'command';
 
         const {
             channelName,
@@ -22,6 +24,8 @@ module.exports = function createCommandFabric(transport) {
 
         const channel = transport.getChannel(channelName);
 
+        // TODO (bo) not sure if that's right
+        // TODO (e.g. why producer needs a separate queue anyway?)
         channel.addBinding(() => {
             return channel.bindQueue(
                 exchangeName + '.command',
@@ -29,14 +33,26 @@ module.exports = function createCommandFabric(transport) {
                 'command'
             );
         });
-
-        return transport.client({
-            channelName,
+        
+        const produce = transport.producer({
             exchangeName,
-            exchangeType: 'direct',
-            getContextId,
-            route: 'command'
+            exchangeType: 'direct'
         });
+        
+        return function sendCommand(payload, opts) {
+            opts = opts || {};
+            return Promise.resolve(getCorrelationId(opts.context))
+                .then(correlationId => {
+                    const effectiveOpts = Object.assign({}, opts, {
+                        correlationId
+                    });
+                    return produce(payload, route, effectiveOpts);
+                });
+        };
+
+        function getCorrelationId(context) {
+            return context && getContextId && getContextId(context) || null;
+        }
 
     }
 
