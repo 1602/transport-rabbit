@@ -19,11 +19,10 @@ module.exports = function createRpcClientFabric(transport) {
         assert(typeof exchangeName === 'string',
             'RPC client requires exchangeName: String to be specified');
 
-        opts = opts || {};
-
         const {
-            channelName
-        } = opts;
+            channelName,
+            defaultTimeout = DEFAULT_TIMEOUT
+        } = (opts || {});
 
         const producer = transport.producer({
             channelName,
@@ -59,7 +58,11 @@ module.exports = function createRpcClientFabric(transport) {
         });
 
         return function send(payload, opts) {
-            const handler = addResponseHandler(opts);
+            const {
+                timeout = defaultTimeout
+            } = (opts || {});
+
+            const handler = addResponseHandler(timeout);
             const route = 'query';
 
             debug('sending query to "%s" exchange routed as %s',
@@ -71,7 +74,7 @@ module.exports = function createRpcClientFabric(transport) {
             producer(payload, route, {
                 correlationId: handler.correlationId,
                 replyTo: consumer.assertedQueue,
-                expiration: handler.timeout
+                expiration: timeout
             });
 
             return handler.deferred.promise;
@@ -79,11 +82,7 @@ module.exports = function createRpcClientFabric(transport) {
         };
     };
 
-    function addResponseHandler(opts) {
-        const {
-            timeout = DEFAULT_TIMEOUT
-        } = (opts || {});
-        
+    function addResponseHandler(timeout) {
         const correlationId = generateId();
         const deferred = Promise.defer();
         
@@ -92,8 +91,6 @@ module.exports = function createRpcClientFabric(transport) {
 
         const responseHandler = {
             correlationId,
-            startedAt: Date.now(),
-            timeout,
             timer,
             deferred
         };
