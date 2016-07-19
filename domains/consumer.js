@@ -4,6 +4,7 @@ module.exports = createConsumerFabric;
 
 const assert = require('assert');
 const debug = require('debug')('rabbit:consumer');
+const createJob = require('./job');
 
 function createConsumerFabric(transport) {
 
@@ -39,7 +40,6 @@ function createConsumerFabric(transport) {
             'Consumer must have "consume(payload, job)" function specified');
 
         const channel = transport.assertChannel(channelName);
-        const noAck = consumerOptions.noAck;
 
         channel.addSetup(() => {
             return channel.assertQueue(queueName, queueOptions)
@@ -84,39 +84,9 @@ function createConsumerFabric(transport) {
         };
 
         function handler(msg) {
-
-            debug(`received ${
-                msg.properties.type || 'msg'
-            } to ${
-                queueName || 'exclusive queue'
-            } via ${
-                channelName
-            }`);
-
-            let msgHandled = noAck === true;
-
+            debug(`received ${msg.properties.type || 'msg'} to ${queueName || 'exclusive queue'}`);
             const data = JSON.parse(msg.content.toString());
-            const ch = channel.get();
-            const ack = () => safeAck(true);
-            const nack = () => safeAck(false);
-
-            consume(data && data.payload, { msg, ack, nack });
-
-            function safeAck(isAck) {
-                if (msgHandled) {
-                    return;
-                }
-                msgHandled = true;
-
-                if (isAck) {
-                    debug('ack');
-                    return ch.ack(msg);
-                }
-
-                debug('nack');
-                return ch.nack(msg);
-            }
-
+            consume(data && data.payload, createJob(msg, channel, consumerOptions));
         }
 
     };

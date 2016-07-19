@@ -41,22 +41,26 @@ module.exports = function createRpcServerFabric(transport) {
                 Promise.resolve()
                     .then(() => handler(payload, job))
                     .then(res => {
-                        job.ack();
-                        producer(res, replyTo, {
-                            correlationId,
-                            type: 'result'
-                        });
-                    })
-                    .catch(err => {
-                        job.ack();
-                        producer({
-                            message: err.message,
-                            stack: err.stack,
-                            details: err.details
-                        }, replyTo, {
-                            correlationId,
-                            type: 'error'
-                        });
+                        // Do not produce results if message is NACKed by handler
+                        if (job.ackStatus !== 'nack') {
+                            job.ack();
+                            producer(res, replyTo, {
+                                correlationId,
+                                type: 'result'
+                            });
+                        }
+                    }, err => {
+                        if (job.ackStatus !== 'nack') {
+                            job.ack();
+                            producer({
+                                message: err.message,
+                                stack: err.stack,
+                                details: err.details
+                            }, replyTo, {
+                                correlationId,
+                                type: 'error'
+                            });
+                        }
                     });
             }
         });
