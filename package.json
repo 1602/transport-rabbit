@@ -1,6 +1,6 @@
 {
   "name": "transport-rabbit",
-  "version": "0.4.0-0",
+  "version": "0.4.0",
   "description": "Transport layer domain for rabbit",
   "main": "index.js",
   "engines": {
