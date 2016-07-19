@@ -4,19 +4,6 @@ const expect = require('expect');
 const queueTransport = require('../');
 const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.101:5672';
 
-// mimic ORM
-const jobs = [];
-
-function Job(data) {
-    jobs.push(Object.assign(this, data, { id: jobs.length + 1 }));
-}
-
-Job.create = data => Promise.resolve(new Job(data));
-Job.find = id => {
-    const job = jobs.find(j => j.id === Number(id));
-    return Promise.resolve(job);
-};
-
 describe('command', () => {
 
     context('normal flow', () => {
@@ -31,15 +18,9 @@ describe('command', () => {
         before(() => {
             transport = queueTransport({ url: rabbitUrl });
 
-            client = transport.commandSender('task', {
-                getContextId: context => Job.create({ context })
-                    .then(job => String(job.id))
-            });
+            client = transport.commandSender('task');
 
             transport.commandResultRecipient('task', {
-
-                getContextById: contextId => Job.find(contextId)
-                    .then(job => job.context),
 
                 error: (err, job) => {
                     result2 = err;
@@ -85,36 +66,6 @@ describe('command', () => {
             setTimeout(() => {
                 expect(result2.message).toEqual('Oops');
                 expect(context2).toEqual(null);
-                done();
-            }, 300);
-        });
-
-        it('should continue to work when context not found', (done) => {
-            const find = Job.find;
-            Job.find = () => Promise.resolve(null);
-            result1 = null;
-            context1 = 'something';
-            client(1, { context: { a: 1 } });
-            setTimeout(() => {
-                Job.find = find;
-                expect(result1).toEqual('hola');
-                expect(context1).toEqual(null);
-                done();
-            }, 300);
-        });
-
-        it('should continue to work when context throws', (done) => {
-            const find = Job.find;
-            Job.find = () => {
-                throw new Error('Boom');
-            };
-            result1 = null;
-            context1 = 'something';
-            client(1, { context: { a: 1 } });
-            setTimeout(() => {
-                Job.find = find;
-                expect(result1).toEqual('hola');
-                expect(context1).toEqual(null);
                 done();
             }, 300);
         });

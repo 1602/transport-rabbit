@@ -4,7 +4,6 @@ module.exports = createConsumerFabric;
 
 const assert = require('assert');
 const debug = require('debug')('rabbit:consumer');
-const createJob = require('./job');
 
 function createConsumerFabric(transport) {
 
@@ -32,6 +31,8 @@ function createConsumerFabric(transport) {
             consume,
             channelName = 'default',
         } = spec;
+        
+        const noAck = consumerOptions.noAck;
 
         assert.notEqual(typeof queueName, 'undefined',
             'Consumer must have queue to consume from specified');
@@ -85,8 +86,43 @@ function createConsumerFabric(transport) {
 
         function handler(msg) {
             debug(`received ${msg.properties.type || 'msg'} to ${queueName || 'exclusive queue'}`);
-            const data = JSON.parse(msg.content.toString());
-            consume(data && data.payload, createJob(msg, channel, consumerOptions));
+            const data = JSON.parse(msg.content.toString()) || {};
+            const {
+                payload,
+                context
+            } = data;
+            consume(payload, createJob(msg, context));
+        }
+
+        function createJob(msg, context) {
+
+            let ackStatus = noAck === true ? 'ack' : null;
+
+            return {
+                msg,
+                ack,
+                nack,
+                get ackStatus() {
+                    return ackStatus;
+                },
+                context
+            };
+
+            function ack() {
+                if (ackStatus) {
+                    return;
+                }
+                ackStatus = 'ack';
+                channel.ack(msg);
+            }
+
+            function nack() {
+                if (ackStatus) {
+                    return;
+                }
+                ackStatus = 'nack';
+                channel.nack(msg);
+            }
         }
 
     };

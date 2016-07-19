@@ -36,15 +36,16 @@ function createProducerFabric(transport) {
         });
 
         return function publish(payload, route, opts) {
+            opts = opts || {};
+            const context = opts.context;
 
             chan.assertOpenChannel();
-
-            debug('sending msg to exchange "%s" via route "%s", corrId=%s', exchangeName, route, opts && opts.correlationId);
-
+            debug('publish to exchange "%s" via route "%s"', exchangeName, route);
+            
             return chan.publish(
                 exchangeName,
                 route,
-                new Buffer(JSON.stringify({ payload }), 'utf-8'),
+                new Buffer(JSON.stringify({ payload, context }), 'utf-8'),
                 opts
             );
         };
