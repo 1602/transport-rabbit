@@ -63,17 +63,17 @@ function initTransport(settings) {
     transport.producer = createProducerFabric(transport);
     transport.consumer = createConsumerFabric(transport);
     
-    transport.rpcClient = createRpcClientFabric(transport, settings);
-    transport.rpcServer = createRpcServerFabric(transport, settings);
+    transport.rpcClient = createRpcClientFabric(transport);
+    transport.rpcServer = createRpcServerFabric(transport);
 
-    const pubsub = createPubsubFabric(transport);
-    transport.publisher = pubsub.createPublisher;
-    transport.subscriber = pubsub.createSubscriber;
+    const pubsubFabric = createPubsubFabric(transport);
+    transport.publisher = pubsubFabric.createPublisher;
+    transport.subscriber = pubsubFabric.createSubscriber;
 
-    const command = createCommandFabric(transport);
-    transport.commandSender = command.createCommandSender;
-    transport.commandServer = command.createCommandServer;
-    transport.commandResultRecipient = command.createCommandResultRecipient;
+    const commandFabric = createCommandFabric(transport);
+    transport.commandSender = commandFabric.createCommandSender;
+    transport.commandServer = commandFabric.createCommandServer;
+    transport.commandResultRecipient = commandFabric.createCommandResultRecipient;
 
     connection.events.on('connected', () => {
         Promise.all(Object.keys(channels)

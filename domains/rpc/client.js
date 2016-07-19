@@ -1,32 +1,18 @@
 'use strict';
 
-module.exports = createRpcClientFabric;
-
 const helpers = require('../helpers');
 const assert = require('assert');
 const debug = require('debug')('rabbit:rpc:client');
 
 const generateId = helpers.generateId;
 
-const DEFAULT_RPC_EXPIRATION_INTERVAL = 1000;
+const DEFAULT_TIMEOUT = 60 * 1000;
 
-function createRpcClientFabric(transport, settings) {
+module.exports = function createRpcClientFabric(transport) {
 
     const awaitingResponseHandlers = Object.create(null);
-    const awaitingExpiration = [];
-    const rpcExpirationInterval = settings.rpcExpirationInterval || DEFAULT_RPC_EXPIRATION_INTERVAL;
 
-    let expirationInterval;
-
-    // stop expiration watchdog when transport closes
-    transport.events.on('close', stopExpirationInterval);
-
-    function stopExpirationInterval() {
-        if (expirationInterval) {
-            clearInterval(expirationInterval);
-            expirationInterval = null;
-        }
-    }
+    transport.events.on('close', () => rejectAll(new Error('Transport closed')));
 
     return function createRpcClient(exchangeName, opts) {
 
@@ -38,9 +24,6 @@ function createRpcClientFabric(transport, settings) {
         const {
             channelName
         } = opts;
-
-        // start expiration interval on demand
-        expirationInterval = expirationInterval || startExpirationInterval();
 
         const producer = transport.producer({
             channelName,
@@ -65,20 +48,18 @@ function createRpcClientFabric(transport, settings) {
                     type
                 } = job.msg.properties;
 
-                const action = {
-                    error: 'reject',
-                    result: 'resolve'
-                }[type];
+                if (type === 'error') {
+                    // TODO (bo) convert to error maybe?
+                    rejectHandler(correlationId, payload);
+                } else {
+                    resolveHandler(correlationId, payload);
+                }
 
-                awaitingResponseHandlers[correlationId].deferred[action](payload);
-                delete awaitingResponseHandlers[correlationId];
-                awaitingExpiration.splice(awaitingExpiration.indexOf(
-                    awaitingResponseHandlers[correlationId]), 1);
             }
         });
 
-        return function send(payload) {
-            const resp = addResponseHandler();
+        return function send(payload, opts) {
+            const handler = addResponseHandler(opts);
             const route = 'query';
 
             debug('sending query to "%s" exchange routed as %s',
@@ -88,53 +69,67 @@ function createRpcClientFabric(transport, settings) {
             assert(consumer.assertedQueue, 'Reply queue is not asserted');
 
             producer(payload, route, {
-                correlationId: resp.correlationId,
+                correlationId: handler.correlationId,
                 replyTo: consumer.assertedQueue,
-                expiration: String(rpcExpirationInterval)
+                expiration: handler.timeout
             });
 
-            return resp.promisedResult;
+            return handler.deferred.promise;
 
         };
     };
 
-    function startExpirationInterval() {
-        debug('Start expiration interval each %d ms', rpcExpirationInterval);
-        return setInterval(() => {
-            const now = Date.now();
-            let expireMe;
-            while (awaitingExpiration[0] && awaitingExpiration[0].expireAt <= now) {
-                debug('expire rpc: expire handler by timeout');
-                expireMe = awaitingExpiration.shift();
-                expireMe.deferred.reject(new Error('Awaiting response handler expired by timeout'));
-                delete awaitingResponseHandlers[expireMe.correlationId];
-                if (awaitingExpiration.length === 0) {
-                    stopExpirationInterval();
-                }
-            }
-        }, rpcExpirationInterval);
-    }
-
-    function addResponseHandler() {
+    function addResponseHandler(opts) {
+        const {
+            timeout = DEFAULT_TIMEOUT
+        } = (opts || {});
+        
         const correlationId = generateId();
         const deferred = Promise.defer();
+        
+        const timer = setTimeout(() =>
+            rejectHandler(correlationId, new Error('RPC request expired')), timeout);
 
         const responseHandler = {
             correlationId,
-            deferred,
-            startedAt: Date.now()
+            startedAt: Date.now(),
+            timeout,
+            timer,
+            deferred
         };
-
-        if (settings.rpcTimeout) {
-            responseHandler.expireAt = responseHandler.startedAt + settings.rpcTimeout;
-            awaitingExpiration.push(responseHandler);
-        }
 
         awaitingResponseHandlers[correlationId] = responseHandler;
 
-        return {
-            promisedResult: deferred.promise,
-            correlationId
-        };
+        return responseHandler;
     }
-}
+
+    function popHandler(correlationId) {
+        const handler = awaitingResponseHandlers[correlationId];
+        if (handler) {
+            delete awaitingResponseHandlers[correlationId];
+            clearTimeout(handler.timer);
+        }
+        return handler;
+    }
+
+    function resolveHandler(correlationId, result) {
+        const handler = popHandler(correlationId);
+        if (!handler) {
+            return;
+        }
+        handler.deferred.resolve(result);
+    }
+
+    function rejectHandler(correlationId, err) {
+        const handler = popHandler(correlationId);
+        if (!handler) {
+            return;
+        }
+        handler.deferred.reject(err);
+    }
+
+    function rejectAll(err) {
+        Object.keys(awaitingResponseHandlers)
+            .forEach(correlationId => rejectHandler(correlationId, err));
+    }
+};
