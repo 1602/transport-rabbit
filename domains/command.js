@@ -13,13 +13,11 @@ module.exports = function createCommandFabric(transport) {
 
     function createCommandSender(exchangeName, opts) {
 
-        opts = opts || {};
-        
         const {
             channelName,
             getContextId,
             route = 'command'
-        } = opts;
+        } = (opts || {});
 
         const channel = transport.getChannel(channelName);
 
@@ -69,14 +67,10 @@ module.exports = function createCommandFabric(transport) {
         assert.equal(typeof handler, 'function',
             'Command server requires opts.handler: Function/2 to be specified');
 
-        let producer = null;
-
-        if (opts.produceResults !== false) {
-            producer = transport.producer({
-                channelName,
-                exchangeName
-            });
-        }
+        const producer = transport.producer({
+            channelName,
+            exchangeName
+        });
 
         return transport.consumer({
             channelName,
@@ -90,25 +84,24 @@ module.exports = function createCommandFabric(transport) {
             },
             routes: [ route ],
             consume(payload, job) {
-                const correlationId = job.msg.properties.correlationId;
-
-                if (!producer) {
-                    handler(payload, job);
-                    return;
-                }
-
+                const producerOpts = {
+                    correlationId: job.msg.properties.correlationId
+                };
                 Promise.resolve()
                     .then(() => handler(payload, job))
-                    .then(result => producer(result, 'result', {
-                        correlationId
-                    }))
-                    .catch(err => producer({
-                        message: err.message,
-                        stack: err.stack,
-                        details: err.details
-                    }, 'error', {
-                        correlationId
-                    }));
+                    .then(result => {
+                        if (job.ackStatus !== 'nack') {
+                            producer(result, 'result', producerOpts);
+                        }
+                    }, err => {
+                        if (job.ackStatus !== 'nack') {
+                            producer({
+                                message: err.message,
+                                stack: err.stack,
+                                details: err.details
+                            }, 'error', producerOpts);
+                        }
+                    });
             }
         });
 
@@ -135,15 +128,9 @@ module.exports = function createCommandFabric(transport) {
                 routingPatterns: [ type ],
                 consumerOptions: { noAck: true },
                 consume(payload, job) {
-                    const {
-                        msg,
-                        ack,
-                        nack
-                    } = job;
-
-                    getContext(msg.properties.correlationId)
+                    getContext(job.msg.properties.correlationId)
                         .then(context => {
-                            handler(payload, { context, ack, nack });
+                            handler(payload, Object.assign({}, job, { context }));
                         });
                 }
             });
