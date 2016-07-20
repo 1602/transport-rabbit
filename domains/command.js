@@ -79,10 +79,12 @@ module.exports = function createCommandFabric(transport) {
                     .then(() => handler(payload, job))
                     .then(result => {
                         if (job.ackStatus !== 'nack') {
+                            job.ack();
                             producer(result, 'result', producerOpts);
                         }
                     }, err => {
                         if (job.ackStatus !== 'nack') {
+                            job.ack();
                             producer({
                                 message: err.message,
                                 stack: err.stack,
