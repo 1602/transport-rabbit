@@ -40,14 +40,13 @@ function createProducerFabric(transport) {
             const context = opts.context;
 
             chan.assertOpenChannel();
+
             debug('publish to exchange "%s" via route "%s"', exchangeName, route);
-            
-            return chan.publish(
-                exchangeName,
-                route,
-                new Buffer(JSON.stringify({ payload, context }), 'utf-8'),
-                opts
-            );
+
+            const buffer = new Buffer(JSON.stringify({ payload, context }), 'utf-8');
+
+            return Promise.resolve()
+                .then(() => chan.publish(exchangeName, route, buffer, opts));
         };
 
     };
