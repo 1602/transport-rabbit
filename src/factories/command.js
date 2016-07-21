@@ -3,7 +3,7 @@
 const assert = require('assert');
 const debug = require('debug')('rabbit:command');
 
-module.exports = function createCommandFabric(transport) {
+module.exports = function createCommandFactory(transport) {
 
     return {
         createCommandSender,

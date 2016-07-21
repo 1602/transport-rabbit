@@ -8,7 +8,7 @@ const generateId = helpers.generateId;
 
 const DEFAULT_TIMEOUT = 60 * 1000;
 
-module.exports = function createRpcClientFabric(transport) {
+module.exports = function createRpcClientFactory(transport) {
 
     const awaitingResponseHandlers = Object.create(null);
 

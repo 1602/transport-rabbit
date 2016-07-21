@@ -2,7 +2,7 @@
 
 const assert = require('assert');
 
-module.exports = function createRpcServerFabric(transport) {
+module.exports = function createRpcServerFactory(transport) {
 
     return function createRpcServer(exchangeName, opts) {
 

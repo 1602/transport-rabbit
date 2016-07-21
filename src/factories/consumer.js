@@ -1,11 +1,11 @@
 'use strict';
 
-module.exports = createConsumerFabric;
+module.exports = createConsumerFactory;
 
 const assert = require('assert');
 const debug = require('debug')('rabbit:consumer');
 
-function createConsumerFabric(transport) {
+function createConsumerFactory(transport) {
 
     /**
      * @param spec {Object}:
@@ -20,7 +20,7 @@ function createConsumerFabric(transport) {
      */
     return function createConsumer(spec) {
 
-        let assertedQueueName = '';
+        let assertedQueue = '';
         let consumerTag = null;
 
         const {
@@ -42,51 +42,52 @@ function createConsumerFabric(transport) {
             'Consumer must have "consume(payload, job)" function specified');
 
         const channel = transport.assertChannel(channelName);
-
-        channel.addSetup(() => {
-            return channel.assertQueue(queueName, queueOptions)
-                .then(asserted => assertedQueueName = asserted.queue)
-                .then(() => Promise.all(routingPatterns.map(routingPattern =>
-                    channel.bindQueue(
-                        assertedQueueName,
-                        exchangeName,
-                        routingPattern
-                    )
-                        .then(() => {
-                            debug('queue "%s" bound to "%s" routed as "%s"',
-                                assertedQueueName,
-                                exchangeName,
-                                routingPattern);
-                        })
-                ))
-                .then(() => {
-                    if (queueName === '') {
-                        // bind exclusive queues to exchanges to be able to use
-                        // producer(payload, generatedQueue);
-                        return channel.bindQueue(
-                            assertedQueueName,
-                            exchangeName,
-                            assertedQueueName
-                        );
-                    }
-                })
-                .then(() => channel.consume(assertedQueueName, handler, consumeOptions))
-                .then(res => consumerTag = res.consumerTag)
-                .then(() => debug('ready to consume "%s" via %s channel',
-                      assertedQueueName, channelName)));
-        });
+        
+        const destroy = transport.addInit(init);
 
         return {
             get assertedQueue() {
-                return assertedQueueName;
+                return assertedQueue;
             },
             get consumerTag() {
                 return consumerTag
             },
-            cancel() {
-                return channel.cancel(consumerTag);
-            }
+            cancel
         };
+        
+        function init() {
+            return channel.assertQueue(queueName, queueOptions)
+                .then(asserted => assertedQueue = asserted.queue)
+                .then(() => Promise.all(routingPatterns.map(routingPattern =>
+                    channel.bindQueue(assertedQueue, exchangeName, routingPattern)
+                        .then(() => {
+                            debug('queue "%s" bound to "%s" routed as "%s"',
+                                assertedQueue,
+                                exchangeName,
+                                routingPattern);
+                        })
+                ))
+                    .then(() => {
+                        if (queueName === '') {
+                            // bind exclusive queues to exchanges to be able to use
+                            // producer(payload, generatedQueue);
+                            return channel.bindQueue(
+                                assertedQueue,
+                                exchangeName,
+                                assertedQueue
+                            );
+                        }
+                    })
+                    .then(() => channel.consume(assertedQueue, handler, consumeOptions))
+                    .then(res => consumerTag = res.consumerTag)
+                    .then(() => debug('ready to consume "%s" via %s channel',
+                        assertedQueue, channelName)));
+        }
+        
+        function cancel() {
+            return channel.cancel(consumerTag)
+                .then(() => destroy());
+        }
 
         function handler(msg) {
             if (msg == null) {

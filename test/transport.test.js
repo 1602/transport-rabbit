@@ -1,48 +1,48 @@
 'use strict';
 
 const expect = require('expect');
-const queueTransport = require('../');
+const createTransport = require('../');
 const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.100:5672';
 
 /* eslint max-nested-callbacks: [2, 6] */
 
-describe('connection', () => {
+describe('transport', function() {
 
     let transport;
 
-    afterEach((done) => {
+    afterEach(function() {
         if (transport) {
-            Promise.resolve(transport.close()).then(done, done);
-        } else {
-            done();
+            return transport.close()
         }
     });
 
-    it('should trigger event.ready when connected and setup', function(done) {
-        transport = queueTransport({ url: rabbitUrl });
+    it('should connect', function() {
+        transport = createTransport({ url: rabbitUrl });
 
-        transport.events.once('ready', function() {
-            try {
-                expect(arguments.length).toEqual(0);
+        expect(transport.isConnected()).toBe(false);
+        return transport.connect()
+            .then(() => {
                 expect(transport.isConnected()).toBe(true);
-                done();
-            } catch(e) {
-                done(e);
-            }
-        });
+            });
     });
 
-    it('should reconnect in case of disconnect', done => {
-        transport = queueTransport({
+    it.only('should emit "connected"', function(done) {
+        transport = createTransport({ url: rabbitUrl });
+        transport.connect();
+        transport.events.once('connected', done);
+    });
+
+    it('should reconnect in case of disconnect', function(done) {
+        transport = createTransport({
             url: rabbitUrl,
             reconnect: true,
-            reconnectTimeout: 100
+            reconnectInterval: 100
         });
-
-        transport.events.once('ready', () => {
-            transport.connection._connection.close();
-            transport.events.once('ready', () => done());
-        });
+        return transport.connect()
+            .then(() => {
+                transport.getConnection().close();
+                transport.events.once('connected', () => done());
+            });
     });
 
     it('should try to reconnect while server is not available', done => {
@@ -51,7 +51,7 @@ describe('connection', () => {
             reconnect: true,
             reconnectTimeout: 100
         };
-        transport = queueTransport(settings);
+        transport = createTransport(settings);
         Promise.resolve().then(() => settings.url = rabbitUrl);
         transport.events.once('ready', done);
     });
@@ -62,7 +62,7 @@ describe('connection', () => {
             /* reconnect: false, -- default */
             reconnectTimeout: 10
         };
-        transport = queueTransport(settings);
+        transport = createTransport(settings);
         Promise.resolve().then(() => settings.url = rabbitUrl);
         transport.events.once('ready', () => {
             done(new Error('Unexpected connect'));
@@ -71,7 +71,7 @@ describe('connection', () => {
     });
 
     it('should quit gracefully on SIGINT and SIGTERM when configured', () => {
-        transport = queueTransport({
+        transport = createTransport({
             url: rabbitUrl,
             quitGracefullyOnTerm: true
         });
@@ -87,7 +87,7 @@ describe('connection', () => {
     });
 
     it('should close connection when channel can not be opened', done => {
-        transport = queueTransport({ url: rabbitUrl });
+        transport = createTransport({ url: rabbitUrl });
         const close = transport.connection.close;
         const createChannel = transport.connection.createChannel;
 
@@ -104,7 +104,7 @@ describe('connection', () => {
     });
 
     it('should expose errors thrown during init', done => {
-        transport = queueTransport({ url: rabbitUrl });
+        transport = createTransport({ url: rabbitUrl });
         transport.connection.createChannel = () =>
             Promise.reject(new Error('Too many channels opened'));
         transport.events.once('error', err => {
@@ -114,7 +114,7 @@ describe('connection', () => {
     });
 
     it('getReady should be idempotent', () => {
-        transport = queueTransport({ url: rabbitUrl });
+        transport = createTransport({ url: rabbitUrl });
         return Promise.resolve()
             .then(() => transport.getReady())
             .then(() => transport.getReady());

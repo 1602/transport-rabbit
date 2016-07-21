@@ -4,7 +4,7 @@ const expect = require('expect');
 const createTransport = require('../');
 const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.101:5672';
 
-describe('consumer', () => {
+describe.skip('consumer', () => {
 
     let transport = null;
 

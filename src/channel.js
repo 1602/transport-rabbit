@@ -1,7 +1,5 @@
 'use strict';
 
-module.exports = channel;
-
 const DEFAULT_SETTINGS = {
     prefetchCount: 1,
     prefetchGlobal: false
@@ -12,18 +10,17 @@ const assert = require('assert');
 module.exports = function createChannel(transport, channelName) {
     const debug = require('debug')('rabbit:channel:' + channelName);
 
-    const settings = _effectiveSettings();
+    const settings = getEffectiveSettings();
 
     let amqpChannel = null;
+    
+    transport.addInit(init);
 
     return Object.assign(standardChannelInterface(), {
-        settings,
-        assertOpen,
-        get: get
+        settings
     });
 
     function standardChannelInterface() {
-        const slice = Array.prototype.slice;
         return [
             'assertExchange',
             'assertQueue',
@@ -45,26 +42,20 @@ module.exports = function createChannel(transport, channelName) {
             'recover',
             'close'
         ].reduce((wrap, name) => {
-            wrap[name] = function() {
-                debug(name + ' ' + arguments[0]);
-                return get()[name].apply(
-                    amqpChannel,
-                    slice.call(arguments));
+            wrap[name] = function(...args) {
+                debug(name, ...args);
+                return getWrappedChannel[name](...args);
             };
             return wrap;
         }, {});
     }
 
-    function assertOpen() {
+    function getWrappedChannel() {
         assert(amqpChannel, 'Client is not connected to channel');
-    }
-
-    function get() {
-        assertOpen();
         return amqpChannel;
     }
 
-    function _init() {
+    function init() {
         debug('init');
         return Promise.resolve()
             .then(() => transport.connection.createChannel())
@@ -79,7 +70,7 @@ module.exports = function createChannel(transport, channelName) {
             });
     }
 
-    function _effectiveSettings() {
+    function getEffectiveSettings() {
         const chanSettings = transport.settings.channelSettings || {};
         return Object.assign({},
             DEFAULT_SETTINGS,

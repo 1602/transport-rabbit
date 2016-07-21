@@ -6,7 +6,7 @@ const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.101:5672';
 
 /* eslint max-nested-callbacks: [2, 6] */
 
-describe('channel', () => {
+describe.skip('channel', () => {
 
     it('should allow to take care of stream throughput');
 
