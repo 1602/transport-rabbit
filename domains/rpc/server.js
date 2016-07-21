@@ -27,7 +27,7 @@ module.exports = function createRpcServerFabric(transport) {
             exchangeName
         });
 
-        transport.consumer({
+        return transport.consumer({
             channelName,
             exchangeName,
             queueName: exchangeName + '.query',
