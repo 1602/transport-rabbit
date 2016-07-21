@@ -4,7 +4,6 @@ module.exports = channel;
 
 const DEFAULT_PREFETCH = 1;
 
-// const createQueueWrapper = require('./queue');
 const EventEmitter = require('events');
 const assert = require('assert');
 
@@ -20,35 +19,22 @@ function channel(channelName) {
     const setupHooks = [];
     const bindingHooks = [];
 
-    const channelWrapper = Object.assign(standardChannelInterface(), {
+    return Object.assign(standardChannelInterface(), {
         events,
-
-        bindQueue: (queueName, exchangeName, route, options) => {
-            debug(
-                'bind "%s" to "%s" exchange using "%s" route',
-                queueName,
-                exchangeName,
-                route);
-
-            return amqpChannel.bindQueue(queueName, exchangeName, route, options);
-        },
-
         addSetup: fn => setupHooks.push(fn),
         addBinding: fn => bindingHooks.push(fn),
         getSettings: () => ({ prefetchCount, prefetchIsGlobal }),
         bind,
         assertOpenChannel,
-
         get: get
     });
-
-    return channelWrapper;
 
     function standardChannelInterface() {
         const slice = Array.prototype.slice;
         return [
             'assertExchange',
             'assertQueue',
+            'bindQueue',
             'purgeQueue',
             'checkQueue',
             'deleteQueue',
@@ -88,7 +74,7 @@ function channel(channelName) {
     /**
      * Internal transport to queue bindings.
      *
-     * It start listening error and close everts,
+     * It start listening error and close events,
      * asserts queues and set up channel (prefetch, etc.).
      *
      * @param channel {AMQPChannel(amqplib)} - amqp channel.
@@ -111,9 +97,6 @@ function channel(channelName) {
             events.emit('close', channelErrored);
             amqpChannel = null;
         });
-
-        // channel.on('return', () => {
-        // });
 
         if (settings.prefetch) {
             prefetchCount = settings.prefetch;
