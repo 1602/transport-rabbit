@@ -94,12 +94,18 @@ function createConsumerFabric(transport) {
                 return;
             }
             debug(`received ${msg.properties.type || 'msg'} to ${queueName || 'exclusive queue'}`);
-            const data = JSON.parse(msg.content.toString()) || {};
-            const {
-                payload,
-                context
-            } = data;
-            consume(payload, createJob(msg, context));
+            try {
+                const data = JSON.parse(msg.content.toString()) || {};
+                const {
+                    payload,
+                    context
+                } = data;
+                consume(payload, createJob(msg, context));
+            } catch (e) {
+                console.warn('Malformed message is dropped from queue');
+                debug(`dropping ${msg.content.toString()} due to ${e.message}`);
+                channel.nack(msg, false, false);
+            }
         }
 
         function createJob(msg, context) {
@@ -116,20 +122,20 @@ function createConsumerFabric(transport) {
                 context
             };
 
-            function ack() {
+            function ack(allUpTo) {
                 if (ackStatus) {
                     return;
                 }
                 ackStatus = 'ack';
-                channel.ack(msg);
+                channel.ack(msg, allUpTo);
             }
 
-            function nack() {
+            function nack(allUpTo, requeue) {
                 if (ackStatus) {
                     return;
                 }
                 ackStatus = 'nack';
-                channel.nack(msg);
+                channel.nack(msg, allUpTo, requeue);
             }
         }
 
