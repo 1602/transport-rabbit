@@ -15,24 +15,25 @@ function createConsumerFabric(transport) {
      *    (optional, defaults to [])
      *  - handler {(Object, { msg, context, ack, nack }) => Promise} - message handler
      *  - queueOptions {Object} - options for assertQueue (defaults to {})
-     *  - consumerOptions {Object} - options for ch.consume (defaults to {})
+     *  - consumeOptions {Object} - options for ch.consume (defaults to {})
      *  - channelName {String} - name of channel (optional, defaults to 'default')
      */
     return function createConsumer(spec) {
 
         let assertedQueueName = '';
+        let consumerTag = null;
 
         const {
             queueName, // required, can be empty string for exclusive queue
             exchangeName,
             routingPatterns = [],
             queueOptions = {},
-            consumerOptions = {},
+            consumeOptions = {},
             consume,
             channelName = 'default',
         } = spec;
         
-        const noAck = consumerOptions.noAck;
+        const noAck = consumeOptions.noAck;
 
         assert.notEqual(typeof queueName, 'undefined',
             'Consumer must have queue to consume from specified');
@@ -69,11 +70,8 @@ function createConsumerFabric(transport) {
                         );
                     }
                 })
-                .then(() => channel.consume(
-                    assertedQueueName,
-                    handler,
-                    consumerOptions
-                ))
+                .then(() => channel.consume(assertedQueueName, handler, consumeOptions))
+                .then(res => consumerTag = res.consumerTag)
                 .then(() => debug('ready to consume "%s" via %s channel',
                       assertedQueueName, channelName)));
         });
@@ -81,10 +79,20 @@ function createConsumerFabric(transport) {
         return {
             get assertedQueue() {
                 return assertedQueueName;
+            },
+            get consumerTag() {
+                return consumerTag
+            },
+            cancel() {
+                return channel.cancel(consumerTag);
             }
         };
 
         function handler(msg) {
+            if (msg === null) {
+                // consume is cancelled
+                return;
+            }
             debug(`received ${msg.properties.type || 'msg'} to ${queueName || 'exclusive queue'}`);
             const data = JSON.parse(msg.content.toString()) || {};
             const {

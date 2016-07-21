@@ -115,7 +115,7 @@ module.exports = function createCommandFabric(transport) {
                 exchangeName,
                 queueName: [ exchangeName, type ].join('.'),
                 routingPatterns: [ type ],
-                consumerOptions: { noAck: true },
+                consumeOptions: { noAck: true },
                 consume(payload, job) {
                     handler(payload, job);
                 }

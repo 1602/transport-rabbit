@@ -38,7 +38,7 @@ module.exports = function createRpcClientFabric(transport) {
                 exclusive: true,
                 autoDelete: true
             },
-            consumerOptions: {
+            consumeOptions: {
                 noAck: true
             },
             consume(payload, job) {
