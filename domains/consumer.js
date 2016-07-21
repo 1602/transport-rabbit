@@ -89,8 +89,8 @@ function createConsumerFabric(transport) {
         };
 
         function handler(msg) {
-            if (msg === null) {
-                // consume is cancelled
+            if (msg == null) {
+                // consume is cancelled, corner case
                 return;
             }
             debug(`received ${msg.properties.type || 'msg'} to ${queueName || 'exclusive queue'}`);

@@ -104,6 +104,7 @@ describe('command', () => {
                 if (rejectedOnce) {
                     job.ack();
                     expect(job.ack).toNotThrow();
+                    expect(job.nack).toNotThrow();
                     done();
                     return;
                 }

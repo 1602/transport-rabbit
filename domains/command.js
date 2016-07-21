@@ -70,7 +70,7 @@ module.exports = function createCommandFabric(transport) {
                 durable: true,
                 autoDelete: false
             },
-            routes: [ route ],
+            routingPatterns: [ route ],
             consume(payload, job) {
                 const producerOpts = {
                     context: job.context
