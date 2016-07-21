@@ -58,7 +58,7 @@ module.exports = function createChannel(transport, channelName) {
     function init() {
         debug('init');
         return Promise.resolve()
-            .then(() => transport.connection.createChannel())
+            .then(() => transport.getConnection().createChannel())
             .then(channel => amqpChannel = channel)
             .then(() => {
                 const {

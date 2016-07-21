@@ -11,8 +11,8 @@ const createFactories = require('./factories');
 /**
  * @param settings {Object}
  * @param settings.url {String} rabbitmq url
- * @param settings.quitGracefullyOnTerm {Boolean} (true) attach SIGTERM/SIGINT handlers
- * @param settings.reconnect {Boolean} (true) reconnect on connection failures
+ * @param settings.quitGracefullyOnTerm {Boolean} (false) attach SIGTERM/SIGINT handlers
+ * @param settings.reconnect {Boolean} (false) reconnect on connection failures
  * @param settings.reconnectInterval {Number} (2000) reconnect interval
  * @param settings.channelSettings {Object} channel settings (global and per-channelName)
  * @param settings.channelSettings.prefetchCount {Number} (1)
@@ -26,11 +26,11 @@ module.exports = function createTransport(settings) {
     const {
         url,
         reconnectInterval = 2000,
-        quitGracefullyOnTerm = true
+        quitGracefullyOnTerm = false
     } = settings;
 
     let {
-        reconnect = true
+        reconnect = false
     } = settings;
 
     if (quitGracefullyOnTerm) {
@@ -66,13 +66,14 @@ module.exports = function createTransport(settings) {
         if (isConnected()) {
             return Promise.resolve();
         }
-        return _connect()
+        return Promise.resolve()
+            .then(() => _connect())
             .then(conn => {
                 debug('connected');
                 events.emit('connected');
                 connection = conn;
                 connection.on('error', err => {
-                    console.error(err);
+                    console.error('Connection error', err);
                     connection.close();
                 });
                 connection.on('close', () => {
@@ -84,7 +85,6 @@ module.exports = function createTransport(settings) {
                         debug('connection closed, will NOT reconnect');
                     }
                 });
-                // TODO if initializers throw, we should not hide/ignore it!
                 return init();
             });
     }
@@ -114,7 +114,6 @@ module.exports = function createTransport(settings) {
     }
 
     function close() {
-        events.emit('close');
         if (!isConnected()) {
             return Promise.resolve();
         }
@@ -124,6 +123,7 @@ module.exports = function createTransport(settings) {
             .then(() => {
                 debug('connection closed manually');
                 connection = null;
+                events.emit('close');
             });
     }
 
@@ -137,7 +137,8 @@ module.exports = function createTransport(settings) {
 
     function addInit(fn) {
         if (initialized) {
-            execInit(fn);
+            execInit(fn)
+                .catch(err => onInitError(err));
         }
         initializers.push(fn);
         return function removeInit() {
@@ -145,18 +146,27 @@ module.exports = function createTransport(settings) {
             if (i > -1) {
                 initializers.splice(i, 1);
             }
-        }
+        };
     }
     
     function init() {
         initialized = false;
         // imperial loops! b/c we can!
         initializers.forEach(fn => execInit(fn));
-        return currentInitializer.then(() => initialized = true);
+        return currentInitializer
+            .then(() => {
+                initialized = true;
+            }, err => onInitError(err));
     }
     
     function execInit(fn) {
         currentInitializer = currentInitializer.then(() => fn());
+        return currentInitializer;
+    }
+
+    function onInitError(err) {
+        console.error('Error during initialization', err);
+        return connection.close(err);
     }
 
 };

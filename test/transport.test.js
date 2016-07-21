@@ -2,6 +2,9 @@
 
 const expect = require('expect');
 const createTransport = require('../');
+const sinon = require('sinon');
+const amqplib = require('amqplib');
+
 const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.100:5672';
 
 /* eslint max-nested-callbacks: [2, 6] */
@@ -12,7 +15,7 @@ describe('transport', function() {
 
     afterEach(function() {
         if (transport) {
-            return transport.close()
+            return transport.close();
         }
     });
 
@@ -26,7 +29,7 @@ describe('transport', function() {
             });
     });
 
-    it.only('should emit "connected"', function(done) {
+    it('should emit "connected"', function(done) {
         transport = createTransport({ url: rabbitUrl });
         transport.connect();
         transport.events.once('connected', done);
@@ -45,85 +48,128 @@ describe('transport', function() {
             });
     });
 
-    it('should try to reconnect while server is not available', done => {
-        const settings = {
-            url: 'amqp://localhost:9999/',
+    it('should try to reconnect while server is not available', function(done) {
+        transport = createTransport({
+            url: rabbitUrl,
             reconnect: true,
-            reconnectTimeout: 100
-        };
-        transport = createTransport(settings);
-        Promise.resolve().then(() => settings.url = rabbitUrl);
-        transport.events.once('ready', done);
-    });
-
-    it('should not try to reconnect if not configured', done => {
-        const settings = {
-            url: 'amqp://localhost:9999/',
-            /* reconnect: false, -- default */
-            reconnectTimeout: 10
-        };
-        transport = createTransport(settings);
-        Promise.resolve().then(() => settings.url = rabbitUrl);
-        transport.events.once('ready', () => {
-            done(new Error('Unexpected connect'));
+            reconnectInterval: 100
         });
-        setTimeout(done, 100);
+        sinon.stub(amqplib, 'connect', () =>
+            Promise.reject(new Error('connection failed')));
+        transport.connect();
+        setTimeout(() => amqplib.connect.restore(), 100);
+        transport.events.once('connected', done);
     });
 
-    it('should quit gracefully on SIGINT and SIGTERM when configured', () => {
+    it('should not try to reconnect if not configured', function(done) {
+        transport = createTransport({
+            url: rabbitUrl,
+            /* reconnect: false, default */
+            reconnectInterval: 10
+        });
+        transport.connect()
+            .then(() => {
+                transport.getConnection().close();
+                transport.events.once('connected', () =>
+                    done(new Error('Unexpected connect')));
+            });
+        setTimeout(done, 200);
+    });
+
+    it('should quit gracefully on SIGINT and SIGTERM when configured', function() {
         transport = createTransport({
             url: rabbitUrl,
             quitGracefullyOnTerm: true
         });
-
-        return transport.getReady()
-            .then(() => process.emit('SIGTERM'))
-            .then(() => getClose());
-
-        function getClose() {
-            return new Promise(resolve => transport.events.on('close', resolve));
-        }
-
+        return transport.connect()
+            .then(() => new Promise(resolve => {
+                transport.events.once('close', resolve);
+                process.emit('SIGTERM');
+            }));
     });
 
-    it('should close connection when channel can not be opened', done => {
+    it('should close connection when channel can not be opened', function(done) {
         transport = createTransport({ url: rabbitUrl });
-        const close = transport.connection.close;
-        const createChannel = transport.connection.createChannel;
-
-        transport.connection.createChannel = () =>
-            Promise.reject(new Error('Too many channels opened'));
-
-        transport.connection.close = () => {
-            transport.connection.createChannel = createChannel;
-            transport.connection.close = close;
-            transport.connection.close();
-            transport = null;
-            done();
-        };
+        transport.connect()
+            .then(() => {
+                const conn = transport.getConnection();
+                sinon.stub(conn, 'createChannel', () => {
+                    return Promise.reject(new Error('Too many channels opened'));
+                });
+                sinon.stub(conn, 'close', () => {
+                    conn.close.restore();
+                    done();
+                });
+                transport.assertChannel('default');
+            });
     });
 
-    it('should expose errors thrown during init', done => {
-        transport = createTransport({ url: rabbitUrl });
-        transport.connection.createChannel = () =>
-            Promise.reject(new Error('Too many channels opened'));
-        transport.events.once('error', err => {
-            expect(err.message).toBe('Too many channels opened');
-            done();
-        });
-    });
-
-    it('getReady should be idempotent', () => {
+    it('connect should be idempotent', () => {
         transport = createTransport({ url: rabbitUrl });
         return Promise.resolve()
-            .then(() => transport.getReady())
-            .then(() => transport.getReady());
+            .then(() => transport.connect())
+            .then(() => transport.connect());
     });
 
     it('close should be idempotent', () => {
+        transport = createTransport({ url: rabbitUrl });
         return Promise.resolve()
+            .then(() => transport.connect())
             .then(() => transport.close())
             .then(() => transport.close());
+    });
+
+    describe('initializers', function() {
+
+        it('should be queued before connect and executed sequentially', function() {
+            const inits = [];
+            transport = createTransport({ url: rabbitUrl });
+            transport.addInit(() => inits.push('a'));
+            transport.addInit(() => inits.push('b'));
+            transport.addInit(() => inits.push('c'));
+            return transport.connect()
+                .then(() => {
+                    expect(inits.join('')).toBe('abc');
+                });
+        });
+
+        it('should queue after connect and executed inplace', function(done) {
+            const inits = [];
+            transport = createTransport({ url: rabbitUrl });
+            transport.connect()
+                .then(() => {
+                    transport.addInit(() => inits.push('a'));
+                    transport.addInit(() => inits.push('b'));
+                    transport.addInit(() => inits.push('c'));
+                    // initializers are async!
+                    expect(inits.join('')).toBe('');
+                    setTimeout(() => {
+                        expect(inits.join('')).toBe('abc');
+                        done();
+                    });
+                });
+        });
+
+        it('should mix before and after connect and still execute sequentially', function(done) {
+            const inits = [];
+            transport = createTransport({ url: rabbitUrl });
+            transport.addInit(() => inits.push('a'));
+            transport.addInit(() => inits.push('b'));
+            transport.addInit(() => inits.push('c'));
+            transport.connect()
+                .then(() => {
+                    transport.addInit(() => inits.push('d'));
+                    transport.addInit(() => inits.push('e'));
+                    transport.addInit(() => inits.push('f'));
+                    // pre-connect are now executed
+                    expect(inits.join('')).toBe('abc');
+                    setTimeout(() => {
+                        expect(inits.join('')).toBe('abcdef');
+                        done();
+                    });
+                });
+        });
+
     });
 
 });
