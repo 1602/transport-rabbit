@@ -4,7 +4,7 @@ const expect = require('expect');
 const createTransport = require('../');
 const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.101:5672';
 
-describe.skip('consumer', () => {
+describe('consumer', () => {
 
     let transport = null;
 
@@ -17,18 +17,18 @@ describe.skip('consumer', () => {
     it('should consume queues', () => {
         transport.consumer({
             channelName: 'custom',
-            exchangeName: 'task',
-            queueName: 'command',
+            exchangeName: 'consumer.test',
+            queueName: 'consumer.test',
             consume() {}
         });
 
         let queueConsumed = false;
-        const chan = transport.getChannel('custom');
+        const chan = transport.channel('custom');
         chan.consume = (...args) => {
             queueConsumed = true;
-            return chan.get().consume(...args);
+            return chan.getWrappedChannel().consume(...args);
         };
-        return transport.getReady()
+        return transport.connect()
             .then(() => {
                 expect(queueConsumed).toBe(true);
             });
@@ -37,14 +37,14 @@ describe.skip('consumer', () => {
     it('should maintain consumer tags', () => {
         const consumer = transport.consumer({
             channelName: 'custom',
-            exchangeName: 'task',
-            queueName: 'command',
+            exchangeName: 'consumer.test',
+            queueName: 'consumer.test',
             consumeOptions: {
                 consumerTag: 'some-tag'
             },
             consume() {}
         });
-        return transport.getReady()
+        return transport.connect()
             .then(() => {
                 expect(consumer.consumerTag).toBe('some-tag');
             });

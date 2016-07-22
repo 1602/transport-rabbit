@@ -9,14 +9,15 @@ function createConsumerFactory(transport) {
 
     /**
      * @param spec {Object}:
-     *  - queueName {String} - name of queue
-     *  - exchangeName {String} - name of exchange to bind queue to
-     *  - routes {Array<String>} - routing keys for queue binding
-     *    (optional, defaults to [])
-     *  - handler {(Object, { msg, context, ack, nack }) => Promise} - message handler
-     *  - queueOptions {Object} - options for assertQueue (defaults to {})
-     *  - consumeOptions {Object} - options for ch.consume (defaults to {})
-     *  - channelName {String} - name of channel (optional, defaults to 'default')
+     * @param spec.queueName {String} - name of queue
+     * @param spec.queueOptions {Object} - options for assertQueue (defaults to {})
+     * @param spec.exchangeName {String} name of exchange
+     * @param spec.exchangeType {String} (direct) type of exchange
+     * @param spec.exchangeOptions {Object} options for assertExchange
+     * @param spec.routes {Array<String>} ([]) routing keys for queue binding
+     * @param spec.handler {(Object, { msg, context, ack, nack }) => Promise} - message handler
+     * @param spec.consumeOptions {Object} - options for ch.consume (defaults to {})
+     * @param spec.channelName {String} - name of channel (optional, defaults to 'default')
      */
     return function createConsumer(spec) {
 
@@ -26,6 +27,8 @@ function createConsumerFactory(transport) {
         const {
             queueName, // required, can be empty string for exclusive queue
             exchangeName,
+            exchangeType = 'direct',
+            exchangeOptions = {},
             routes = [],
             queueOptions = {},
             consumeOptions = {},
@@ -57,12 +60,20 @@ function createConsumerFactory(transport) {
         
         function init() {
             return Promise.resolve()
+                .then(() => assertExchange())
                 .then(() => assertQueue())
                 .then(() => bindQueue())
                 .then(() => channel.consume(assertedQueue, handler, consumeOptions))
                 .then(res => consumerTag = res.consumerTag)
                 .then(() => debug('ready to consume "%s" via %s channel',
                     assertedQueue, channelName));
+        }
+
+        function assertExchange() {
+            return channel.assertExchange(
+                exchangeName,
+                exchangeType,
+                exchangeOptions);
         }
 
         function assertQueue() {

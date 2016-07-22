@@ -59,6 +59,7 @@ module.exports = function createChannelFactory(transport) {
         transport.addInit(init);
 
         const channel = Object.assign(standardChannelInterface(), {
+            getWrappedChannel,
             settings: effectiveSettings
         });
 
