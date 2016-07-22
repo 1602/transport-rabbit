@@ -18,6 +18,21 @@ describe('channel', () => {
         return transport.close();
     });
 
+    it('should allocate amqlib channel on connect', function() {
+        const channel = transport.channel('default');
+        expect(channel.getWrappedChannel).toThrow();
+        return transport.connect()
+            .then(() => expect(channel.getWrappedChannel).toNotThrow());
+    });
+
+    it.only('should close amqplib channel on close', function() {
+        const channel = transport.channel('default');
+        return transport.connect()
+            .then(() => expect(transport.channels.default).toExist())
+            .then(() => channel.close())
+            .then(() => expect(transport.channels.default).toNotExist());
+    });
+
     context('multiple channels consumption', function() {
 
         it('should be possible to consume multiple channels', function() {

@@ -56,11 +56,12 @@ module.exports = function createChannelFactory(transport) {
 
         let amqpChannel = null;
 
-        transport.addInit(init);
+        const unInit = transport.addInit(init);
 
         const channel = Object.assign(standardChannelInterface(), {
             getWrappedChannel,
-            settings: effectiveSettings
+            settings: effectiveSettings,
+            close
         });
 
         return channel;
@@ -92,6 +93,15 @@ module.exports = function createChannelFactory(transport) {
                 .then(() => channel.prefetch(
                     effectiveSettings.prefetchCount,
                     effectiveSettings.prefetchGlobal));
+        }
+        
+        function close() {
+            debug('close');
+            return Promise.resolve()
+                .then(() => unInit())
+                .then(() => amqpChannel && amqpChannel.close())
+                .then(() => amqpChannel = null)
+                .then(() => delete transport.channels[channelName]);
         }
 
     }
