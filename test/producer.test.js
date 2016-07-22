@@ -18,27 +18,6 @@ describe('producer', function() {
         transport.close();
     });
 
-    it('should assert exchanges', function() {
-        transport.producer({
-            channelName: 'custom',
-            exchangeName: 'producer.test',
-            exchangeType: 'direct'
-        });
-
-        let exchangeAsserted = false;
-        const chan = transport.channel('custom');
-
-        chan.assertExchange = () => {
-            exchangeAsserted = true;
-            return Promise.resolve();
-        };
-
-        return transport.connect()
-            .then(() => {
-                expect(exchangeAsserted).toBe(true);
-            });
-    });
-
     it('should throw when called too early', function() {
         const produce = transport.producer({
             exchangeName: 'log'

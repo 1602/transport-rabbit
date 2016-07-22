@@ -1,58 +1,58 @@
 'use strict';
 
 const expect = require('expect');
-const queueTransport = require('../');
+const createTransport = require('../');
 const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.101:5672';
 
-describe.skip('command', () => {
+describe('command', function() {
+    
+    let transport;
+    
+    beforeEach(function() {
+        transport = createTransport({ url: rabbitUrl });
+    });
+    
+    afterEach(function() {
+        return transport.close();
+    });
 
     context('normal flow', () => {
 
-        let transport;
         let client;
         let result1;
         let context1;
         let result2;
         let context2;
 
-        before(() => {
-            transport = queueTransport({ url: rabbitUrl });
+        beforeEach(() => {
+            
+            client = transport.commandSender('command.test');
 
-            client = transport.commandSender('task');
-
-            transport.commandResultRecipient('task', {
-
+            transport.commandResultRecipient('command.test', {
                 error: (err, job) => {
                     result2 = err;
                     context2 = job.context;
                 },
-
                 result: (res, job) => {
                     result1 = res;
                     context1 = job.context;
                 }
-
             });
 
-            transport.commandServer('task', {
+            transport.commandServer('command.test', {
                 handler(msg, job) {
                     job.ack();
-
                     if (msg) {
                         return 'hola';
                     }
-
                     throw new Error('Oops');
                 }
             });
 
-            return transport.getReady();
-
+            return transport.connect();
         });
 
-        after(() => transport.close());
-
-        it('can produce results asyncronously', (done) => {
+        it('can produce results asynchronously', (done) => {
             client(1, { context: { say: 'hello' } });
             setTimeout(() => {
                 expect(result1).toEqual('hola');
@@ -61,7 +61,7 @@ describe.skip('command', () => {
             }, 300);
         });
 
-        it('can produce errors asyncronously', (done) => {
+        it('can produce errors asynchronously', (done) => {
             client(0);
             setTimeout(() => {
                 expect(result2.message).toEqual('Oops');
@@ -79,7 +79,7 @@ describe.skip('command', () => {
         let handler;
 
         beforeEach(() => {
-            transport = queueTransport({ url: rabbitUrl });
+            transport = createTransport({ url: rabbitUrl });
             send = transport.commandSender('task-donotcare');
 
             transport.commandServer('task-donotcare', {

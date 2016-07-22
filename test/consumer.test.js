@@ -12,6 +12,8 @@ describe('consumer', function() {
         transport = createTransport({
             url: rabbitUrl
         });
+        const channel = transport.channel('custom');
+        transport.addInit(() => channel.assertQueue('consumer.test'));
     });
 
     afterEach(function() {
@@ -19,9 +21,9 @@ describe('consumer', function() {
     });
 
     it('should consume queues', function() {
+
         transport.consumer({
             channelName: 'custom',
-            exchangeName: 'consumer.test',
             queueName: 'consumer.test',
             consume() {}
         });
@@ -41,7 +43,6 @@ describe('consumer', function() {
     it('should maintain consumer tags', function() {
         const consumer = transport.consumer({
             channelName: 'custom',
-            exchangeName: 'consumer.test',
             queueName: 'consumer.test',
             consumeOptions: {
                 consumerTag: 'some-tag'

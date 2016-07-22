@@ -7,24 +7,19 @@ module.exports = function createProducerFactory(transport) {
 
     /**
      * @param spec {Object}
-     * @param spec.exchangeName {String} name of exchange
-     * @param spec.exchangeType {String} (direct) type of exchange
-     * @param spec.exchangeOptions {Object} options for assertExchange
-     * @param spec.channelName {String} (default) name of channel
+     * @param spec.exchangeName {String} exchange to produce to
+     * @param spec.channelName {String} (default) channel name
      */
     return function createProducer(spec) {
+
         const {
             exchangeName,
-            exchangeType = 'direct',
-            exchangeOptions = {},
             channelName = 'default'
         } = spec;
 
         assert(exchangeName, 'Producer must have exchangeName specified');
 
         const channel = transport.channel(channelName);
-
-        transport.addInit(init);
 
         return function publish(payload, route, opts) {
             opts = opts || {};
@@ -39,13 +34,6 @@ module.exports = function createProducerFactory(transport) {
                 .then(() => channel.publish(exchangeName, route, buffer, opts));
         };
         
-        function init() {
-            return channel.assertExchange(
-                exchangeName,
-                exchangeType,
-                exchangeOptions);
-        }
-
     };
 
 };

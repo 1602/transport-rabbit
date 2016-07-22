@@ -8,31 +8,20 @@ const debug = require('debug')('rabbit:consumer');
 function createConsumerFactory(transport) {
 
     /**
-     * @param spec {Object}:
-     * @param spec.queueName {String} - name of queue
-     * @param spec.queueOptions {Object} - options for assertQueue (defaults to {})
-     * @param spec.exchangeName {String} name of exchange
-     * @param spec.exchangeType {String} (direct) type of exchange
-     * @param spec.exchangeOptions {Object} options for assertExchange
-     * @param spec.routes {Array<String>} ([]) routing keys for queue binding
-     * @param spec.handler {(Object, { msg, context, ack, nack }) => Promise} - message handler
-     * @param spec.consumeOptions {Object} - options for ch.consume (defaults to {})
-     * @param spec.channelName {String} - name of channel (optional, defaults to 'default')
+     * @param spec {Object}
+     * @param spec.queueName {String} name of queue
+     * @param spec.consume {(Object, { msg, context, ack, nack }) => Promise} message handler
+     * @param spec.consumeOptions {Object} options for consume
+     * @param spec.channelName {String} (default) name of channel
      */
     return function createConsumer(spec) {
 
-        let assertedQueue = null;
         let consumerTag = null;
 
         const {
             queueName, // required, can be empty string for exclusive queue
-            exchangeName,
-            exchangeType = 'direct',
-            exchangeOptions = {},
-            routes = [],
-            queueOptions = {},
-            consumeOptions = {},
             consume,
+            consumeOptions = {},
             channelName = 'default',
         } = spec;
         
@@ -49,9 +38,6 @@ function createConsumerFactory(transport) {
         const destroy = transport.addInit(init);
 
         return {
-            get assertedQueue() {
-                return assertedQueue;
-            },
             get consumerTag() {
                 return consumerTag;
             },
@@ -60,42 +46,12 @@ function createConsumerFactory(transport) {
         
         function init() {
             return Promise.resolve()
-                .then(() => assertExchange())
-                .then(() => assertQueue())
-                .then(() => bindQueue())
-                .then(() => channel.consume(assertedQueue, handler, consumeOptions))
+                .then(() => channel.consume(queueName, handler, consumeOptions))
                 .then(res => consumerTag = res.consumerTag)
                 .then(() => debug('ready to consume "%s" via %s channel',
-                    assertedQueue, channelName));
+                    queueName, channelName));
         }
 
-        function assertExchange() {
-            return channel.assertExchange(
-                exchangeName,
-                exchangeType,
-                exchangeOptions);
-        }
-
-        function assertQueue() {
-            return channel.assertQueue(queueName, queueOptions)
-                .then(res => assertedQueue = res.queue);
-        }
-        
-        function bindQueue() {
-            if (routes.length) {
-                const promises = routes.map(route =>
-                    channel.bindQueue(assertedQueue, exchangeName, route));
-                return Promise.all(promises);
-            }
-            // If no routes provided, bind queue to exchange directly
-            // (route === queueName)
-            // this is useful with RPC pattern (exclusive queues with generated names)
-            return channel.bindQueue(
-                assertedQueue,
-                exchangeName,
-                assertedQueue);
-        }
-        
         function cancel() {
             return channel.cancel(consumerTag)
                 .then(() => destroy());

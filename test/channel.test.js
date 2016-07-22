@@ -15,10 +15,7 @@ describe('channel', () => {
     });
 
     afterEach(function() {
-        if (transport) {
-            return transport.close()
-                .then(() => transport = null);
-        }
+        return transport.close();
     });
 
     context('multiple channels consumption', function() {
@@ -27,18 +24,28 @@ describe('channel', () => {
             let alphaMsg = null;
             let bravoMsg = null;
 
+            const channel = transport.channel('default');
+
             const client = transport.producer({
-                exchangeName: 'channel.test'
+                exchangeName: 'channel.test',
+                channelName: 'default'
             });
+
+            transport.addInit(() =>
+                channel.assertExchange('channel.test', 'direct'));
+
+            transport.addInit(() =>
+                channel.assertQueue('channel.test'));
+
+            transport.addInit(() =>
+                channel.bindQueue('channel.test', 'channel.test', 'default'));
 
             startConsumer('alpha', msg => alphaMsg = msg);
             startConsumer('bravo', msg => bravoMsg = msg);
 
             function startConsumer(channelName, fn) {
                 transport.consumer({
-                    exchangeName: 'channel.test',
                     queueName: 'channel.test',
-                    routes: ['default'],
                     consume(msg, job) {
                         fn(msg);
                         setTimeout(job.ack, 150);

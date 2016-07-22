@@ -1,9 +1,14 @@
 'use strict';
 
 const assert = require('assert');
-const debug = require('debug')('rabbit:command');
 
 module.exports = function createCommandFactory(transport) {
+    
+    const queueOptions = {
+        exclusive: false,
+        durable: true,
+        autoDelete: false
+    };
 
     return {
         createCommandSender,
@@ -11,48 +16,62 @@ module.exports = function createCommandFactory(transport) {
         createCommandResultRecipient
     };
 
-    function createCommandSender(exchangeName, opts) {
+    function createCommandSender(exchangeName, channelName = 'default') {
+        assert.equal(typeof exchangeName, 'string',
+            'Command sender requires exchangeName: String');
 
-        const {
-            channelName = 'default',
-            route = 'command'
-        } = (opts || {});
+        const commandQueue = exchangeName + '.command';
 
         const channel = transport.channel(channelName);
 
-        transport.addInit(function() {
-            return channel.bindQueue(
-                exchangeName + '.command',
-                exchangeName,
-                route);
+        const produce = transport.producer({
+            channelName,
+            exchangeName
         });
 
-        const produce = transport.producer({
-            exchangeName,
-            exchangeType: 'direct'
+        transport.addInit(function() {
+            return Promise.resolve()
+                .then(() => channel.assertExchange(exchangeName, 'direct'))
+                .then(() => channel.assertQueue(commandQueue, queueOptions))
+                .then(() => channel.bindQueue(commandQueue, exchangeName, 'command'));
         });
 
         return function sendCommand(payload, opts) {
-            return produce(payload, route, opts);
+            return produce(payload, 'command', opts);
         };
 
     }
 
     function createCommandServer(exchangeName, opts) {
         assert.equal(typeof exchangeName, 'string',
-            'Command server requires exchangeName: String to be specified');
-
+            'Command server requires exchangeName: String');
         assert.equal(typeof opts, 'object',
-            'Command server requires opts: Object to be specified');
+            'Command server requires opts: Object');
 
         const {
             channelName = 'default',
-            handler,
-            route = 'command'
+            handler
         } = opts;
 
         assert.equal(typeof handler, 'function',
-            'Command server requires opts.handler: Function/2 to be specified');
+            'Command server requires opts.handler: Function/2');
+
+        const commandQueue = exchangeName + '.command';
+        const resultQueue = exchangeName + '.result';
+        const errorQueue = exchangeName + '.error';
+
+        const channel = transport.channel(channelName);
+
+        transport.addInit(function() {
+            return Promise.resolve()
+                .then(() => channel.assertExchange(exchangeName, 'direct'))
+                .then(() => channel.assertQueue(commandQueue, queueOptions))
+                .then(() => channel.assertQueue(resultQueue, queueOptions))
+                .then(() => channel.assertQueue(errorQueue, queueOptions))
+                .then(() => channel.bindQueue(commandQueue, exchangeName, 'command'))
+                .then(() => channel.bindQueue(resultQueue, exchangeName, 'result'))
+                .then(() => channel.bindQueue(errorQueue, exchangeName, 'error'));
+        });
 
         const producer = transport.producer({
             channelName,
@@ -61,21 +80,14 @@ module.exports = function createCommandFactory(transport) {
 
         return transport.consumer({
             channelName,
-            exchangeName,
-            exchangeType: 'direct',
-            queueName: exchangeName + '.command',
-            queueOptions: {
-                exclusive: false,
-                durable: true,
-                autoDelete: false
-            },
-            routes: [ route ],
+            queueName: commandQueue,
             consume(payload, job) {
                 const producerOpts = {
                     context: job.context
                 };
                 Promise.resolve()
                     .then(() => handler(payload, job))
+                    // TODO see if this can be factored away into job
                     .then(result => {
                         if (job.ackStatus !== 'nack') {
                             job.ack();
@@ -105,24 +117,38 @@ module.exports = function createCommandFactory(transport) {
             channelName = 'default'
         } = opts;
 
-        return Promise.all([
-            createConsumer('result', result),
-            createConsumer('error', error),
-            channelName
-        ]);
+        const channel = transport.channel(channelName);
 
-        function createConsumer(type, handler) {
-            return transport.consumer({
-                channelName,
-                exchangeName,
-                queueName: [ exchangeName, type ].join('.'),
-                routes: [ type ],
-                consumeOptions: { noAck: true },
-                consume(payload, job) {
-                    handler(payload, job);
-                }
-            });
-        }
+        const resultQueue = exchangeName + '.result';
+        const errorQueue = exchangeName + '.error';
+
+        transport.addInit(function() {
+            return Promise.resolve()
+                .then(() => channel.assertExchange(exchangeName, 'direct'))
+                .then(() => channel.assertQueue(resultQueue, queueOptions))
+                .then(() => channel.assertQueue(errorQueue, queueOptions))
+                .then(() => channel.bindQueue(resultQueue, exchangeName, 'result'))
+                .then(() => channel.bindQueue(errorQueue, exchangeName, 'error'));
+        });
+        
+        const resultConsumer = transport.consumer({
+            channelName,
+            queueName: resultQueue,
+            consume: result,
+            consumeOptions: { noAck: true }     // TODO figure if that's safe
+        });
+
+        const errorConsumer = transport.consumer({
+            channelName,
+            queueName: errorQueue,
+            consume: error,
+            consumeOptions: { noAck: true }
+        });
+        
+        return {
+            resultConsumer,
+            errorConsumer
+        };
 
     }
 
