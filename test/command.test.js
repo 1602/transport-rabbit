@@ -80,9 +80,10 @@ describe('command', function() {
 
         beforeEach(() => {
             transport = createTransport({ url: rabbitUrl });
-            send = transport.commandSender('task-donotcare');
+            send = transport.commandSender('command.test');
 
-            transport.commandServer('task-donotcare', {
+            transport.commandServer('command.test', {
+                produceResults: false,
                 handler: function() {
                     return handler.apply(null, [].slice.call(arguments));
                 }

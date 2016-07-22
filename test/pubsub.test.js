@@ -5,29 +5,37 @@ const queueTransport = require('../');
 const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.101:5672';
 
 /* eslint max-nested-callbacks: [2, 6] */
-describe.skip('pubsub', () => {
+describe.skip('pubsub', function() {
 
     let transport;
-    let publish;
-    const results1 = [];
-    const results2 = [];
 
-    before(() => {
+    beforeEach(function() {
         transport = queueTransport({ url: rabbitUrl });
-
-        publish = transport.publisher('broadcast-fanout');
-
-        transport.subscriber('broadcast-fanout', res => results1.push(res));
-        transport.subscriber('broadcast-fanout', res => results2.push(res));
-
-        return transport.getReady();
     });
 
-    after(() => transport.close());
+    afterEach(function() {
+        return transport.close();
+    });
 
-    it('should receive message to both queues', () => {
-        publish('message');
-        return new Promise(r => setTimeout(r, 300))
+    it('should receive message to both queues', function() {
+        const publish = transport.publisher('pubsub.test');
+
+        const results1 = [];
+        const results2 = [];
+
+        transport.subscriber('pubsub.test', {
+            topic: 'something',
+            consume: res => results1.push(res)
+        });
+
+        transport.subscriber('pubsub.test', {
+            topic: 'something',
+            consume: res => results2.push(res)
+        });
+
+        return transport.connect()
+            .then(() => publish('message', 'something'))
+            .then(() => new Promise(resolve => setTimeout(resolve, 300)))
             .then(() => {
                 expect(results1[0]).toBe('message');
                 expect(results2[0]).toBe('message');
