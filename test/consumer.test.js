@@ -17,6 +17,11 @@ describe('consumer', function() {
     });
 
     afterEach(function() {
+        const channel = transport.channel('custom');
+        return channel.purgeQueue('consumer.test');
+    });
+
+    afterEach(function() {
         return transport.close();
     });
 
@@ -53,6 +58,39 @@ describe('consumer', function() {
             .then(() => {
                 expect(consumer.consumerTag).toBe('some-tag');
             });
+    });
+
+    it('should be cancellable', function() {
+        let consumed = false;
+        const channel = transport.channel('custom');
+        const consumer = transport.consumer({
+            channelName: 'custom',
+            queueName: 'consumer.test',
+            consume() {
+                consumed = true;
+            }
+        });
+        return transport.connect()
+            .then(() => consumer.cancel())
+            .then(() => channel.sendToQueue('consumer.test', new Buffer('{}')))
+            .then(() => new Promise(resolve => setTimeout(resolve, 200)))
+            .then(() => expect(consumed).toBe(false));
+    });
+
+    it('should not consume malformed JSON messages', function() {
+        let consumed = false;
+        const channel = transport.channel('custom');
+        const consumer = transport.consumer({
+            channelName: 'custom',
+            queueName: 'consumer.test',
+            consume() {
+                consumed = true;
+            }
+        });
+        return transport.connect()
+            .then(() => channel.sendToQueue('consumer.test', new Buffer('hi')))
+            .then(() => new Promise(resolve => setTimeout(resolve, 200)))
+            .then(() => expect(consumed).toBe(false));
     });
 
 });
