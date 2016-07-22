@@ -24,21 +24,53 @@ describe('pubsub', function() {
         const results2 = [];
 
         transport.subscriber('pubsub.test', {
-            topic: 'something',
             consume: res => results1.push(res)
         });
 
         transport.subscriber('pubsub.test', {
-            topic: 'something',
             consume: res => results2.push(res)
         });
 
         return transport.connect()
-            .then(() => publish('message', 'something'))
+            .then(() => publish('message'))
             .then(() => new Promise(resolve => setTimeout(resolve, 300)))
             .then(() => {
                 expect(results1[0]).toBe('message');
                 expect(results2[0]).toBe('message');
+            });
+    });
+
+    it('should work like router', function() {
+        const publish = transport.publisher('pubsub.test');
+
+        const infos = [];
+        const errors = [];
+        const all = [];
+
+        transport.subscriber('pubsub.test', {
+            topic: 'info',
+            consume: res => infos.push(res)
+        });
+
+        transport.subscriber('pubsub.test', {
+            topic: 'error',
+            consume: res => errors.push(res)
+        });
+
+        transport.subscriber('pubsub.test', {
+            topic: '#',
+            consume: res => all.push(res)
+        });
+
+        return transport.connect()
+            .then(() => publish('hey', 'info'))
+            .then(() => publish('hola', 'info'))
+            .then(() => publish('oops', 'error'))
+            .then(() => new Promise(resolve => setTimeout(resolve, 300)))
+            .then(() => {
+                expect(infos.length).toBe(2);
+                expect(errors.length).toBe(1);
+                expect(all.length).toBe(3);
             });
     });
 
