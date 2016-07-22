@@ -27,9 +27,9 @@ describe('rpc', function() {
 
         beforeEach(function() {
 
-            runFiboRpc = transport.rpcClient('fibonacci');
+            runFiboRpc = transport.rpcClient('rpc.test');
 
-            transport.rpcServer('fibonacci', {
+            transport.rpcServer('rpc.test', {
                 handler(payload, job) {
                     job.ack();
                     return calculateNonRecursive(payload.n);
@@ -68,11 +68,11 @@ describe('rpc', function() {
         let requeued = false;
 
         beforeEach(function() {
-            runFiboRpc = transport.rpcClient('fibonacci');
+            runFiboRpc = transport.rpcClient('rpc.test');
 
             requeued = false;
 
-            transport.rpcServer('fibonacci', {
+            transport.rpcServer('rpc.test', {
                 handler(payload, job) {
                     if (!requeued) {
                         requeued = true;

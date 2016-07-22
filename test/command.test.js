@@ -16,7 +16,7 @@ describe('command', function() {
         return transport.close();
     });
 
-    context('normal flow', () => {
+    context('normal flow', function() {
 
         let client;
         let result1;
@@ -24,7 +24,7 @@ describe('command', function() {
         let result2;
         let context2;
 
-        beforeEach(() => {
+        beforeEach(function() {
             
             client = transport.commandSender('command.test');
 
@@ -52,7 +52,7 @@ describe('command', function() {
             return transport.connect();
         });
 
-        it('can produce results asynchronously', (done) => {
+        it('can produce results asynchronously', function(done) {
             client(1, { context: { say: 'hello' } });
             setTimeout(() => {
                 expect(result1).toEqual('hola');
@@ -61,7 +61,7 @@ describe('command', function() {
             }, 300);
         });
 
-        it('can produce errors asynchronously', (done) => {
+        it('can produce errors asynchronously', function(done) {
             client(0);
             setTimeout(() => {
                 expect(result2.message).toEqual('Oops');
@@ -72,13 +72,13 @@ describe('command', function() {
 
     });
 
-    describe('ack', () => {
+    describe('ack', function() {
 
         let transport = null;
         let send;
         let handler;
 
-        beforeEach(() => {
+        beforeEach(function() {
             transport = createTransport({ url: rabbitUrl });
             send = transport.commandSender('command.test');
 
@@ -92,11 +92,11 @@ describe('command', function() {
             return transport.connect();
         });
 
-        afterEach(() => {
+        afterEach(function() {
             return transport.close();
         });
 
-        it('should allow to nack', done => {
+        it('should allow to nack', function(done) {
             let rejectedOnce = false;
             handler = (param, job) => {
                 expect(param).toBe('hello');

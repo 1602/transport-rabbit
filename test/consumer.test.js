@@ -80,7 +80,7 @@ describe('consumer', function() {
     it('should not consume malformed JSON messages', function() {
         let consumed = false;
         const channel = transport.channel('custom');
-        const consumer = transport.consumer({
+        transport.consumer({
             channelName: 'custom',
             queueName: 'consumer.test',
             consume() {
@@ -92,6 +92,6 @@ describe('consumer', function() {
             .then(() => new Promise(resolve => setTimeout(resolve, 200)))
             .then(() => expect(consumed).toBe(false));
     });
-
+    
 });
 
