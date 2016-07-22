@@ -139,10 +139,9 @@ module.exports = function createTransport(settings) {
         initialized = false;
         // imperial loops! b/c we can!
         initializers.forEach(fn => execInit(fn));
+        initialized = true;
         return currentInitializer
-            .then(() => {
-                initialized = true;
-            }, err => onInitError(err));
+            .catch(err => onInitError(err));
     }
     
     function execInit(fn) {
