@@ -89,7 +89,7 @@ describe('command', function() {
                 }
             });
 
-            return transport.getReady();
+            return transport.connect();
         });
 
         afterEach(() => {

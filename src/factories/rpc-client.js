@@ -2,7 +2,6 @@
 
 const helpers = require('../helpers');
 const assert = require('assert');
-const debug = require('debug')('rabbit:rpc:client');
 
 const generateId = helpers.generateId;
 
@@ -15,46 +14,48 @@ module.exports = function createRpcClientFactory(transport) {
     transport.events.on('close', () => rejectAll(new Error('Transport closed')));
 
     return function createRpcClient(exchangeName, opts) {
+        opts = opts || {};
 
         assert(typeof exchangeName === 'string',
             'RPC client requires exchangeName: String to be specified');
 
         const {
-            channelName,
-            defaultTimeout = DEFAULT_TIMEOUT
-        } = (opts || {});
+            channelName = 'default'
+        } = opts;
+        
+        const defaultTimeout = opts.timeout || DEFAULT_TIMEOUT;
+
+        const queueName = exchangeName + '.' + helpers.generateId();
+
+        const channel = transport.channel(channelName);
 
         const producer = transport.producer({
             channelName,
             exchangeName
         });
 
-        const consumer = transport.consumer({
+        const queueOptions = {
+            durable: false,
+            exclusive: true,
+            autoDelete: true
+        };
+
+        const consumeOptions = {
+            noAck: true
+        };
+
+        transport.addInit(() => {
+            return Promise.resolve()
+                .then(() => channel.assertExchange(exchangeName, 'direct'))
+                .then(() => channel.assertQueue(queueName, queueOptions))
+                .then(() => channel.bindQueue(queueName, exchangeName, queueName));
+        });
+
+        transport.consumer({
             channelName,
-            exchangeName,
-            queueName: '',
-            queueOptions: {
-                durable: false,
-                exclusive: true,
-                autoDelete: true
-            },
-            consumeOptions: {
-                noAck: true
-            },
-            consume(payload, job) {
-                const {
-                    correlationId,
-                    type
-                } = job.msg.properties;
-
-                if (type === 'error') {
-                    // TODO (bo) convert to error maybe?
-                    rejectHandler(correlationId, payload);
-                } else {
-                    resolveHandler(correlationId, payload);
-                }
-
-            }
+            queueName,
+            consumeOptions,
+            consume
         });
 
         return function send(payload, opts) {
@@ -63,23 +64,29 @@ module.exports = function createRpcClientFactory(transport) {
             } = (opts || {});
 
             const handler = addResponseHandler(timeout);
-            const route = 'query';
 
-            debug('sending query to "%s" exchange routed as %s',
-                exchangeName,
-                route);
-
-            assert(consumer.assertedQueue, 'Reply queue is not asserted');
-
-            producer(payload, route, {
+            producer(payload, 'query', {
                 correlationId: handler.correlationId,
-                replyTo: consumer.assertedQueue,
+                replyTo: queueName,
                 expiration: timeout
             });
 
             return handler.deferred.promise;
 
         };
+
+        function consume(payload, job) {
+            const {
+                correlationId,
+                type
+            } = job.msg.properties;
+            if (type === 'error') {
+                // TODO (bo) convert to error maybe?
+                rejectHandler(correlationId, payload);
+            } else {
+                resolveHandler(correlationId, payload);
+            }
+        }
     };
 
     function addResponseHandler(timeout) {

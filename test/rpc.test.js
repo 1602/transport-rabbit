@@ -7,17 +7,25 @@ const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.101:5672';
 
 /* eslint max-nested-callbacks: [2, 6] */
 
-describe.skip('rpc', () => {
+describe('rpc', function() {
 
-    context('normal flow', () => {
+    let transport = null;
+    
+    beforeEach(function() {
+        transport = createTransport({
+            url: rabbitUrl
+        });
+    });
+    
+    afterEach(function() {
+        return transport.close();
+    });
 
-        let transport = null;
+    context('normal flow', function() {
+
         let runFiboRpc = null;
 
-        beforeEach(() => {
-            transport = createTransport({
-                url: rabbitUrl
-            });
+        beforeEach(function() {
 
             runFiboRpc = transport.rpcClient('fibonacci');
 
@@ -28,17 +36,15 @@ describe.skip('rpc', () => {
                 }
             });
 
-            return transport.getReady();
+            return transport.connect();
         });
 
-        afterEach(() => transport.close());
-
-        it('should work', () => {
-            return runFiboRpc({ n: 5 })
-                .then(res => expect(res).toEqual(5));
+        it('should work', function() {
+            return runFiboRpc({ n: 8 })
+                .then(res => expect(res).toEqual(21));
         });
 
-        it('should end by timeout', () => {
+        it('should end by timeout', function() {
             return runFiboRpc({ n: 500 }, {
                 timeout: 100
             })
@@ -47,7 +53,7 @@ describe.skip('rpc', () => {
                 }, err => expect(err.message).toExist());
         });
 
-        it('should catch', () => {
+        it('should catch', function() {
             return runFiboRpc({ n: -1 })
                 .then(() => {
                     throw new Error('Unexpected success');
@@ -56,17 +62,12 @@ describe.skip('rpc', () => {
 
     });
 
-    context('server sends nack', () => {
+    context('server sends nack', function() {
 
-        let transport = null;
         let runFiboRpc = null;
         let requeued = false;
 
-        beforeEach(() => {
-            transport = createTransport({
-                url: rabbitUrl
-            });
-
+        beforeEach(function() {
             runFiboRpc = transport.rpcClient('fibonacci');
 
             requeued = false;
@@ -81,12 +82,10 @@ describe.skip('rpc', () => {
                 }
             });
 
-            return transport.getReady();
+            return transport.connect();
         });
 
-        afterEach(() => transport.close());
-
-        it('should requeue message', () => {
+        it('should requeue message', function() {
             return runFiboRpc({ n: 8 })
                 .then(res => {
                     expect(requeued).toEqual(true);

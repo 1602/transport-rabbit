@@ -45,7 +45,6 @@ module.exports = function createTransport(settings) {
         channels,
         settings,
         connect,
-        getReady: connect,      // TODO there can be only one †
         close,
         getConnection,
         isConnected,

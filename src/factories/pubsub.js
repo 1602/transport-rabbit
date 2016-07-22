@@ -1,6 +1,7 @@
 'use strict';
 
 const assert = require('assert');
+const helpers = require('../helpers');
 
 module.exports = function(transport) {
 
@@ -50,28 +51,19 @@ module.exports = function(transport) {
         };
         
         const channel = transport.channel(channelName);
-        
-        let queueName = null;
-        let consumer = null;
+        const queueName = exchangeName + '.' + helpers.generateId();
         
         transport.addInit(() => {
-            return channel.assertQueue('', queueOptions)
-                .then(res => queueName = res.queue)
-                .then(() => channel.bindQueue(queueName, exchangeName, topic))
-                .then(() => {
-                    consumer = transport.consumer({
-                        queueName,
-                        consume,
-                        consumeOptions
-                    }); 
-                });
+            return Promise.resolve()
+                .then(() => channel.assertQueue(queueName, queueOptions))
+                .then(() => channel.bindQueue(queueName, exchangeName, topic));
         });
         
-        return  {
-            get consumer() {
-                return consumer;
-            }
-        };
+        return transport.consumer({
+            queueName,
+            consume,
+            consumeOptions
+        });
     }
 
 };
