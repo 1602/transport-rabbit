@@ -22,7 +22,7 @@ module.exports = function createProducerFactory(transport) {
 
         assert(exchangeName, 'Producer must have exchangeName specified');
 
-        const channel = transport.assertChannel(channelName);
+        const channel = transport.channel(channelName);
 
         transport.addInit(init);
 
@@ -40,7 +40,6 @@ module.exports = function createProducerFactory(transport) {
         };
         
         function init() {
-            debug('assert exchange %s type=%s', exchangeName, exchangeType);
             return channel.assertExchange(
                 exchangeName,
                 exchangeType,

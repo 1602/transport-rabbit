@@ -11,7 +11,7 @@ function createConsumerFactory(transport) {
      * @param spec {Object}:
      *  - queueName {String} - name of queue
      *  - exchangeName {String} - name of exchange to bind queue to
-     *  - routingPatterns {Array<String>} - routing keys for queue binding
+     *  - routes {Array<String>} - routing keys for queue binding
      *    (optional, defaults to [])
      *  - handler {(Object, { msg, context, ack, nack }) => Promise} - message handler
      *  - queueOptions {Object} - options for assertQueue (defaults to {})
@@ -20,13 +20,13 @@ function createConsumerFactory(transport) {
      */
     return function createConsumer(spec) {
 
-        let assertedQueue = '';
+        let assertedQueue = null;
         let consumerTag = null;
 
         const {
             queueName, // required, can be empty string for exclusive queue
             exchangeName,
-            routingPatterns = [],
+            routes = [],
             queueOptions = {},
             consumeOptions = {},
             consume,
@@ -41,7 +41,7 @@ function createConsumerFactory(transport) {
         assert.equal(typeof consume, 'function',
             'Consumer must have "consume(payload, job)" function specified');
 
-        const channel = transport.assertChannel(channelName);
+        const channel = transport.channel(channelName);
         
         const destroy = transport.addInit(init);
 
@@ -50,38 +50,39 @@ function createConsumerFactory(transport) {
                 return assertedQueue;
             },
             get consumerTag() {
-                return consumerTag
+                return consumerTag;
             },
             cancel
         };
         
         function init() {
+            return Promise.resolve()
+                .then(() => assertQueue())
+                .then(() => bindQueue())
+                .then(() => channel.consume(assertedQueue, handler, consumeOptions))
+                .then(res => consumerTag = res.consumerTag)
+                .then(() => debug('ready to consume "%s" via %s channel',
+                    assertedQueue, channelName));
+        }
+
+        function assertQueue() {
             return channel.assertQueue(queueName, queueOptions)
-                .then(asserted => assertedQueue = asserted.queue)
-                .then(() => Promise.all(routingPatterns.map(routingPattern =>
-                    channel.bindQueue(assertedQueue, exchangeName, routingPattern)
-                        .then(() => {
-                            debug('queue "%s" bound to "%s" routed as "%s"',
-                                assertedQueue,
-                                exchangeName,
-                                routingPattern);
-                        })
-                ))
-                    .then(() => {
-                        if (queueName === '') {
-                            // bind exclusive queues to exchanges to be able to use
-                            // producer(payload, generatedQueue);
-                            return channel.bindQueue(
-                                assertedQueue,
-                                exchangeName,
-                                assertedQueue
-                            );
-                        }
-                    })
-                    .then(() => channel.consume(assertedQueue, handler, consumeOptions))
-                    .then(res => consumerTag = res.consumerTag)
-                    .then(() => debug('ready to consume "%s" via %s channel',
-                        assertedQueue, channelName)));
+                .then(res => assertedQueue = res.queue);
+        }
+        
+        function bindQueue() {
+            if (routes.length) {
+                const promises = routes.map(route =>
+                    channel.bindQueue(assertedQueue, exchangeName, route));
+                return Promise.all(promises);
+            }
+            // If no routes provided, bind queue to exchange directly
+            // (route === queueName)
+            // this is useful with RPC pattern (exclusive queues with generated names)
+            return channel.bindQueue(
+                assertedQueue,
+                exchangeName,
+                assertedQueue);
         }
         
         function cancel() {
@@ -109,6 +110,7 @@ function createConsumerFactory(transport) {
             }
         }
 
+        // TODO extract this
         function createJob(msg, context) {
 
             let ackStatus = noAck === true ? 'ack' : null;

@@ -5,7 +5,6 @@ const amqplib = require('amqplib');
 const debug = require('debug')('rabbit:transport');
 const EventEmitter = require('events');
 
-const createChannel = require('./channel');
 const createFactories = require('./factories');
 
 /**
@@ -14,11 +13,6 @@ const createFactories = require('./factories');
  * @param settings.quitGracefullyOnTerm {Boolean} (false) attach SIGTERM/SIGINT handlers
  * @param settings.reconnect {Boolean} (false) reconnect on connection failures
  * @param settings.reconnectInterval {Number} (2000) reconnect interval
- * @param settings.channelSettings {Object} channel settings (global and per-channelName)
- * @param settings.channelSettings.prefetchCount {Number} (1)
- * @param settings.channelSettings.prefetchGlobal {Boolean} (false)
- * @param settings.channelSettings.<chanName>.prefetchCount
- * @param settings.channelSettings.<chanName>.prefetchGlobal
  */
 module.exports = function createTransport(settings) {
     assert(settings, 'settings not specified');
@@ -48,14 +42,14 @@ module.exports = function createTransport(settings) {
     
     const transport = {
         events,
+        channels,
         settings,
         connect,
         getReady: connect,      // TODO there can be only one †
         close,
         getConnection,
         isConnected,
-        addInit,
-        assertChannel
+        addInit
     };
     
     Object.assign(transport, createFactories(transport));
@@ -125,14 +119,6 @@ module.exports = function createTransport(settings) {
                 connection = null;
                 events.emit('close');
             });
-    }
-
-    function assertChannel(channelName) {
-        assert(channelName, 'channelName not specified');
-        if (!(channelName in channels)) {
-            channels[channelName] = createChannel(transport, channelName);
-        }
-        return channels[channelName];
     }
 
     function addInit(fn) {

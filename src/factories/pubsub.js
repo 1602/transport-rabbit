@@ -35,7 +35,7 @@ module.exports = function(transport) {
             exchangeName,
             exchangeType: 'fanout',
             queueName: '',
-            routingPatterns: [ 'default' ],
+            routes: [ 'default' ],
             queueOptions: {
                 exclusive: true,
                 durable: false,

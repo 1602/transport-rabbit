@@ -14,27 +14,26 @@ module.exports = function createCommandFactory(transport) {
     function createCommandSender(exchangeName, opts) {
 
         const {
-            channelName,
+            channelName = 'default',
             route = 'command'
         } = (opts || {});
 
-        const channel = transport.getChannel(channelName);
+        const channel = transport.channel(channelName);
 
-        channel.addBinding(() => {
+        transport.addInit(function() {
             return channel.bindQueue(
                 exchangeName + '.command',
                 exchangeName,
-                route
-            );
+                route);
         });
-        
+
         const produce = transport.producer({
             exchangeName,
             exchangeType: 'direct'
         });
-        
+
         return function sendCommand(payload, opts) {
-            return produce(payload, route, opts)
+            return produce(payload, route, opts);
         };
 
     }
@@ -47,7 +46,7 @@ module.exports = function createCommandFactory(transport) {
             'Command server requires opts: Object to be specified');
 
         const {
-            channelName,
+            channelName = 'default',
             handler,
             route = 'command'
         } = opts;
@@ -70,7 +69,7 @@ module.exports = function createCommandFactory(transport) {
                 durable: true,
                 autoDelete: false
             },
-            routingPatterns: [ route ],
+            routes: [ route ],
             consume(payload, job) {
                 const producerOpts = {
                     context: job.context
@@ -103,18 +102,21 @@ module.exports = function createCommandFactory(transport) {
         const {
             result,
             error,
-            channelName
+            channelName = 'default'
         } = opts;
 
-        createConsumer('result', result);
-        createConsumer('error', error);
+        return Promise.all([
+            createConsumer('result', result),
+            createConsumer('error', error),
+            channelName
+        ]);
 
         function createConsumer(type, handler) {
-            transport.consumer({
+            return transport.consumer({
                 channelName,
                 exchangeName,
                 queueName: [ exchangeName, type ].join('.'),
-                routingPatterns: [ type ],
+                routes: [ type ],
                 consumeOptions: { noAck: true },
                 consume(payload, job) {
                     handler(payload, job);

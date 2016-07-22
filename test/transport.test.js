@@ -7,15 +7,14 @@ const amqplib = require('amqplib');
 
 const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.100:5672';
 
-/* eslint max-nested-callbacks: [2, 6] */
-
 describe('transport', function() {
 
     let transport;
 
     afterEach(function() {
         if (transport) {
-            return transport.close();
+            return transport.close()
+                .then(() => transport = null);
         }
     });
 
@@ -100,7 +99,7 @@ describe('transport', function() {
                     conn.close.restore();
                     done();
                 });
-                transport.assertChannel('default');
+                transport.channel('default');
             });
     });
 

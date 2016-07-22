@@ -31,7 +31,7 @@ module.exports = function createRpcServerFactory(transport) {
             channelName,
             exchangeName,
             queueName: exchangeName + '.query',
-            routingPatterns: [ 'query' ],
+            routes: [ 'query' ],
             consume(payload, job) {
                 const {
                     correlationId,
