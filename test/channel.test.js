@@ -25,7 +25,7 @@ describe('channel', () => {
             .then(() => expect(channel.getWrappedChannel).toNotThrow());
     });
 
-    it.only('should close amqplib channel on close', function() {
+    it('should close amqplib channel on close', function() {
         const channel = transport.channel('default');
         return transport.connect()
             .then(() => expect(transport.channels.default).toExist())
