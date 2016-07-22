@@ -1,53 +1,53 @@
 'use strict';
 
 const expect = require('expect');
-const queueTransport = require('../');
+const createTransport = require('../');
 const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.101:5672';
 
-describe.skip('producer', () => {
+describe('producer', function() {
 
     let transport = null;
 
-    beforeEach(() => {
-        transport = queueTransport({
+    beforeEach(function() {
+        transport = createTransport({
             url: rabbitUrl
         });
     });
 
-    afterEach(() => transport.close());
+    afterEach(function() {
+        transport.close();
+    });
 
-    it('should assert exchanges', () => {
+    it('should assert exchanges', function() {
         transport.producer({
             channelName: 'custom',
-            exchangeName: 'task',
-            exchangeType: 'direct',
+            exchangeName: 'producer.test',
+            exchangeType: 'direct'
         });
 
         let exchangeAsserted = false;
-        const chan = transport.getChannel('custom');
+        const chan = transport.channel('custom');
+
         chan.assertExchange = () => {
             exchangeAsserted = true;
             return Promise.resolve();
         };
 
-        return transport.getReady()
+        return transport.connect()
             .then(() => {
                 expect(exchangeAsserted).toBe(true);
             });
     });
 
-    it('should throw when called too early', () => {
-        return transport.getReady()
-            .then(() => transport.close())
+    it('should throw when called too early', function() {
+        const produce = transport.producer({
+            exchangeName: 'log'
+        });
+        return Promise.resolve()
+            .then(() => produce('hello'))
             .then(() => {
-                transport = queueTransport({ url: rabbitUrl });
-                const produce = transport.producer({
-                    exchangeName: 'log'
-                });
-                expect(() => produce('hello', 'warn'))
-                    .toThrow('Client is not connected to channel');
-                return transport.getReady();
-            });
+                throw new Error('Unexpected success');
+            }, err => expect(err.message).toBe('Transport not connected'));
     });
 
 });

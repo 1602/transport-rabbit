@@ -63,7 +63,7 @@ describe('channel', () => {
 
     context('prefetch', function() {
 
-        it('should be configurable per-channel', () => {
+        it('should be configurable per-channel', function() {
             const alpha = transport.channel('alpha', {
                 prefetchCount: 2,
                 prefetchGlobal: true
@@ -72,7 +72,7 @@ describe('channel', () => {
             expect(alpha.settings.prefetchGlobal).toBe(true);
         });
 
-        it('should default to count=1 global=false', () => {
+        it('should default to count=1 global=false', function() {
             const bravo = transport.channel('bravo');
             expect(bravo.settings.prefetchCount).toBe(1);
             expect(bravo.settings.prefetchGlobal).toBe(false);

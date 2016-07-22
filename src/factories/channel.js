@@ -80,7 +80,7 @@ module.exports = function createChannelFactory(transport) {
         }
 
         function getWrappedChannel() {
-            assert(amqpChannel, 'Client is not connected to channel');
+            assert(amqpChannel, 'Transport not connected');
             return amqpChannel;
         }
 

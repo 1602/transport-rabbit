@@ -103,14 +103,14 @@ describe('transport', function() {
             });
     });
 
-    it('connect should be idempotent', () => {
+    it('connect should be idempotent', function() {
         transport = createTransport({ url: rabbitUrl });
         return Promise.resolve()
             .then(() => transport.connect())
             .then(() => transport.connect());
     });
 
-    it('close should be idempotent', () => {
+    it('close should be idempotent', function() {
         transport = createTransport({ url: rabbitUrl });
         return Promise.resolve()
             .then(() => transport.connect())

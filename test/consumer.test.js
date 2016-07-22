@@ -4,17 +4,21 @@ const expect = require('expect');
 const createTransport = require('../');
 const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.101:5672';
 
-describe('consumer', () => {
+describe('consumer', function() {
 
     let transport = null;
 
-    beforeEach(() => transport = createTransport({
-        url: rabbitUrl
-    }));
+    beforeEach(function() {
+        transport = createTransport({
+            url: rabbitUrl
+        });
+    });
 
-    afterEach(() => transport.close());
+    afterEach(function() {
+        return transport.close();
+    });
 
-    it('should consume queues', () => {
+    it('should consume queues', function() {
         transport.consumer({
             channelName: 'custom',
             exchangeName: 'consumer.test',
@@ -34,7 +38,7 @@ describe('consumer', () => {
             });
     });
 
-    it('should maintain consumer tags', () => {
+    it('should maintain consumer tags', function() {
         const consumer = transport.consumer({
             channelName: 'custom',
             exchangeName: 'consumer.test',
