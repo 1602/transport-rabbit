@@ -15,23 +15,22 @@ function createConsumerFactory(transport) {
      * @param spec.channelName {String} (default) name of channel
      */
     return function createConsumer(spec) {
+        assert.equal(typeof spec, 'object', 
+            'Consumer requires spec: Object');
 
         let consumerTag = null;
 
         const {
-            queueName, // required, can be empty string for exclusive queue
+            queueName,
             consume,
             consumeOptions = {},
             channelName = 'default',
         } = spec;
         
-        const noAck = consumeOptions.noAck;
-
-        assert.notEqual(typeof queueName, 'undefined',
-            'Consumer must have queue to consume from specified');
+        assert(queueName, 'Consumer requires queueName: String');
 
         assert.equal(typeof consume, 'function',
-            'Consumer must have "consume(payload, job)" function specified');
+            'Consumer requires consume: Function/2');
 
         const channel = transport.channel(channelName);
         
@@ -62,7 +61,7 @@ function createConsumerFactory(transport) {
                 // consume is cancelled, corner case
                 return;
             }
-            debug(`received ${msg.properties.type || 'msg'} to ${queueName || 'exclusive queue'}`);
+            debug(`received ${msg.properties.type || 'msg'} to ${queueName}`);
             try {
                 const data = JSON.parse(msg.content.toString()) || {};
                 const {
@@ -77,10 +76,9 @@ function createConsumerFactory(transport) {
             }
         }
 
-        // TODO extract this
         function createJob(msg, context) {
 
-            let ackStatus = noAck === true ? 'ack' : null;
+            let ackStatus = consumeOptions.noAck === true ? 'ack' : null;
 
             return {
                 msg,
