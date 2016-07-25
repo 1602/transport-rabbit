@@ -59,7 +59,8 @@ module.exports = function createRpcClientFactory(transport) {
 
         return function send(payload, opts) {
             const {
-                timeout = defaultTimeout
+                timeout = defaultTimeout,
+                priority
             } = (opts || {});
 
             const handler = addResponseHandler(timeout);
@@ -67,7 +68,8 @@ module.exports = function createRpcClientFactory(transport) {
             producer(payload, 'query', {
                 correlationId: handler.correlationId,
                 replyTo: queueName,
-                expiration: timeout
+                expiration: timeout,
+                priority
             });
 
             return handler.deferred.promise;
