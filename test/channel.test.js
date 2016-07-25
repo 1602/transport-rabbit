@@ -148,10 +148,11 @@ describe('channel', () => {
                     channel.addInit(() => inits.push('f'));
                     // pre-connect are now executed
                     expect(inits.join('')).toBe('abc');
-                    setTimeout(() => {
-                        expect(inits.join('')).toBe('abcdef');
-                        done();
-                    });
+                    channel.getReady()
+                        .then(() => {
+                            expect(inits.join('')).toBe('abcdef');
+                            done();
+                        });
                 });
         });
 
