@@ -15,13 +15,16 @@ const createFactories = require('./factories');
  * @param settings.reconnectInterval {Number} (2000) reconnect interval
  */
 module.exports = function createTransport(settings) {
-    assert(settings, 'settings not specified');
+    assert(settings, 'Transport requires settings: Object');
 
     const {
         url,
         reconnectInterval = 2000,
         quitGracefullyOnTerm = false
     } = settings;
+
+    assert.equal(typeof settings.url, 'string',
+        'Transport requires settings.url: String');
 
     let {
         reconnect = false
@@ -34,11 +37,8 @@ module.exports = function createTransport(settings) {
 
     const events = new EventEmitter();
     const channels = {};
-    const initializers = [];
 
     let connection = null;
-    let initialized = false;
-    let currentInitializer = Promise.resolve(); // for sequential run
     
     const transport = {
         events,
@@ -47,8 +47,7 @@ module.exports = function createTransport(settings) {
         connect,
         close,
         getConnection,
-        isConnected,
-        addInit
+        isConnected
     };
     
     Object.assign(transport, createFactories(transport));
@@ -62,9 +61,9 @@ module.exports = function createTransport(settings) {
         return Promise.resolve()
             .then(() => _connect())
             .then(conn => {
+                connection = conn;
                 debug('connected');
                 events.emit('connected');
-                connection = conn;
                 connection.on('error', err => {
                     console.error('Connection error', err);
                     connection.close();
@@ -78,7 +77,6 @@ module.exports = function createTransport(settings) {
                         debug('connection closed, will NOT reconnect');
                     }
                 });
-                return init();
             });
     }
 
@@ -118,39 +116,6 @@ module.exports = function createTransport(settings) {
                 connection = null;
                 events.emit('close');
             });
-    }
-
-    function addInit(fn) {
-        if (initialized) {
-            execInit(fn)
-                .catch(err => onInitError(err));
-        }
-        initializers.push(fn);
-        return function removeInit() {
-            const i = initializers.indexOf(fn);
-            if (i > -1) {
-                initializers.splice(i, 1);
-            }
-        };
-    }
-    
-    function init() {
-        initialized = false;
-        // imperial loops! b/c we can!
-        initializers.forEach(fn => execInit(fn));
-        initialized = true;
-        return currentInitializer
-            .catch(err => onInitError(err));
-    }
-    
-    function execInit(fn) {
-        currentInitializer = currentInitializer.then(() => fn());
-        return currentInitializer;
-    }
-
-    function onInitError(err) {
-        console.error('Error during initialization', err);
-        return connection.close(err);
     }
 
 };

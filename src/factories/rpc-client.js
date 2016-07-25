@@ -44,7 +44,7 @@ module.exports = function createRpcClientFactory(transport) {
             noAck: true
         };
 
-        transport.addInit(() => {
+        channel.init(() => {
             return Promise.resolve()
                 .then(() => channel.assertExchange(exchangeName, 'direct'))
                 .then(() => channel.assertQueue(queueName, queueOptions))

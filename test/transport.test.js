@@ -118,58 +118,5 @@ describe('transport', function() {
             .then(() => transport.close());
     });
 
-    describe('initializers', function() {
-
-        it('should be queued before connect and executed sequentially', function() {
-            const inits = [];
-            transport = createTransport({ url: rabbitUrl });
-            transport.addInit(() => inits.push('a'));
-            transport.addInit(() => inits.push('b'));
-            transport.addInit(() => inits.push('c'));
-            return transport.connect()
-                .then(() => {
-                    expect(inits.join('')).toBe('abc');
-                });
-        });
-
-        it('should queue after connect and executed inplace', function(done) {
-            const inits = [];
-            transport = createTransport({ url: rabbitUrl });
-            transport.connect()
-                .then(() => {
-                    transport.addInit(() => inits.push('a'));
-                    transport.addInit(() => inits.push('b'));
-                    transport.addInit(() => inits.push('c'));
-                    // initializers are async!
-                    expect(inits.join('')).toBe('');
-                    setTimeout(() => {
-                        expect(inits.join('')).toBe('abc');
-                        done();
-                    });
-                });
-        });
-
-        it('should mix before and after connect and still execute sequentially', function(done) {
-            const inits = [];
-            transport = createTransport({ url: rabbitUrl });
-            transport.addInit(() => inits.push('a'));
-            transport.addInit(() => inits.push('b'));
-            transport.addInit(() => inits.push('c'));
-            transport.connect()
-                .then(() => {
-                    transport.addInit(() => inits.push('d'));
-                    transport.addInit(() => inits.push('e'));
-                    transport.addInit(() => inits.push('f'));
-                    // pre-connect are now executed
-                    expect(inits.join('')).toBe('abc');
-                    setTimeout(() => {
-                        expect(inits.join('')).toBe('abcdef');
-                        done();
-                    });
-                });
-        });
-
-    });
-
 });
 

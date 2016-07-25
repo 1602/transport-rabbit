@@ -13,11 +13,11 @@ describe('priority queues', function() {
             url: rabbitUrl
         });
         const channel = transport.channel('custom');
-        transport.addInit(() => channel.assertExchange('priority.test'));
-        transport.addInit(() => channel.assertQueue('priority.test', {
+        channel.init(() => channel.assertExchange('priority.test'));
+        channel.init(() => channel.assertQueue('priority.test', {
             maxPriority: 10
         }));
-        transport.addInit(() =>
+        channel.init(() =>
             channel.bindQueue('priority.test', 'priority.test', 'default'));
     });
 

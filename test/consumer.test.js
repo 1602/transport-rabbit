@@ -13,7 +13,7 @@ describe('consumer', function() {
             url: rabbitUrl
         });
         const channel = transport.channel('custom');
-        transport.addInit(() => channel.assertQueue('consumer.test'));
+        channel.init(() => channel.assertQueue('consumer.test'));
     });
 
     afterEach(function() {

@@ -46,13 +46,13 @@ describe('channel', () => {
                 channelName: 'default'
             });
 
-            transport.addInit(() =>
+            channel.init(() =>
                 channel.assertExchange('channel.test', 'direct'));
 
-            transport.addInit(() =>
+            channel.init(() =>
                 channel.assertQueue('channel.test'));
 
-            transport.addInit(() =>
+            channel.init(() =>
                 channel.bindQueue('channel.test', 'channel.test', 'default'));
 
             startConsumer('alpha', msg => alphaMsg = msg);
@@ -98,6 +98,62 @@ describe('channel', () => {
             const bravo = transport.channel('bravo');
             expect(bravo.settings.prefetchCount).toBe(1);
             expect(bravo.settings.prefetchGlobal).toBe(false);
+        });
+
+    });
+
+    context('initializers', function() {
+
+        it('should be queued before connect and executed sequentially', function() {
+            const inits = [];
+            transport = createTransport({ url: rabbitUrl });
+            const channel = transport.channel('default');
+            channel.init(() => inits.push('a'));
+            channel.init(() => inits.push('b'));
+            channel.init(() => inits.push('c'));
+            return transport.connect()
+                .then(() => {
+                    expect(inits.join('')).toBe('abc');
+                });
+        });
+
+        it('should queue after connect and executed inplace', function(done) {
+            const inits = [];
+            transport = createTransport({ url: rabbitUrl });
+            const channel = transport.channel('default');
+            transport.connect()
+                .then(() => {
+                    channel.init(() => inits.push('a'));
+                    channel.init(() => inits.push('b'));
+                    channel.init(() => inits.push('c'));
+                    // initializers are async!
+                    expect(inits.join('')).toBe('');
+                    setTimeout(() => {
+                        expect(inits.join('')).toBe('abc');
+                        done();
+                    });
+                });
+        });
+
+        it('should mix before and after connect and still execute sequentially', function(done) {
+            const inits = [];
+            transport = createTransport({ url: rabbitUrl });
+            const channel = transport.channel('default');
+            channel.init(() => inits.push('a'));
+            channel.init(() => inits.push('b'));
+            channel.init(() => inits.push('c'));
+            transport.connect()
+                .then(() => {
+                    channel.init(() => inits.push('d'));
+                    channel.init(() => inits.push('e'));
+                    channel.init(() => inits.push('f'));
+                    // pre-connect are now executed
+                    expect(inits.join('')).toBe('abc');
+                    setTimeout(() => {
+                        expect(inits.join('')).toBe('abcdef');
+                        done();
+                    });
+                });
         });
 
     });

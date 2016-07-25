@@ -54,13 +54,18 @@ module.exports = function createChannelFactory(transport) {
 
         const effectiveSettings = Object.assign({}, DEFAULT_SETTINGS, settings);
 
+        const initializers = [];
+        let currentInitializer = Promise.resolve(); // for sequential run
+        let initialized = false;
+        
         let amqpChannel = null;
-
-        const unInit = transport.addInit(init);
+        
+        transport.events.on('connected', onConnected);
 
         const channel = Object.assign(standardChannelInterface(), {
             getWrappedChannel,
             settings: effectiveSettings,
+            init,
             close
         });
 
@@ -85,23 +90,56 @@ module.exports = function createChannelFactory(transport) {
             return amqpChannel;
         }
 
-        function init() {
+        function onConnected() {
             debug('init');
             return Promise.resolve()
                 .then(() => transport.getConnection().createChannel())
                 .then(channel => amqpChannel = channel)
                 .then(() => channel.prefetch(
                     effectiveSettings.prefetchCount,
-                    effectiveSettings.prefetchGlobal));
+                    effectiveSettings.prefetchGlobal))
+                .then(() => runInitializers());
         }
         
         function close() {
             debug('close');
             return Promise.resolve()
-                .then(() => unInit())
+                .then(() => transport.events.off('connected', onConnected))
                 .then(() => amqpChannel && amqpChannel.close())
                 .then(() => amqpChannel = null)
                 .then(() => delete transport.channels[channelName]);
+        }
+
+        function init(fn) {
+            if (initialized) {
+                runInitializer(fn)
+                    .catch(err => onInitError(err));
+            }
+            initializers.push(fn);
+            return function removeInit() {
+                const i = initializers.indexOf(fn);
+                if (i > -1) {
+                    initializers.splice(i, 1);
+                }
+            };
+        }
+
+        function runInitializers() {
+            initialized = false;
+            // imperial loops! b/c we can!
+            initializers.forEach(fn => runInitializer(fn));
+            initialized = true;
+            return currentInitializer
+                .catch(err => onInitError(err));
+        }
+
+        function runInitializer(fn) {
+            currentInitializer = currentInitializer.then(() => fn());
+            return currentInitializer;
+        }
+
+        function onInitError(err) {
+            console.error('Error during channel initialization', err);
         }
 
     }
