@@ -20,11 +20,10 @@ module.exports = function createRpcClientFactory(transport) {
             'RPC client requires exchangeName: String to be specified');
 
         const {
-            channelName = 'default'
+            channelName = 'default',
+            defaultTimeout = DEFAULT_TIMEOUT
         } = opts;
         
-        const defaultTimeout = opts.timeout || DEFAULT_TIMEOUT;
-
         const queueName = exchangeName + '.' + helpers.generateId();
 
         const channel = transport.channel(channelName);
