@@ -55,9 +55,6 @@ describe('channel', () => {
             channel.addInit(() =>
                 channel.bindQueue('channel.test', 'channel.test', 'default'));
 
-            startConsumer('alpha', msg => alphaMsg = msg);
-            startConsumer('bravo', msg => bravoMsg = msg);
-
             function startConsumer(channelName, fn) {
                 transport.consumer({
                     queueName: 'channel.test',
@@ -70,6 +67,8 @@ describe('channel', () => {
             }
 
             return transport.getReady()
+                .then(() => startConsumer('alpha', msg => alphaMsg = msg))
+                .then(() => startConsumer('bravo', msg => bravoMsg = msg))
                 .then(() => new Promise(resolve => {
                     client('hello alpha', 'default');
                     client('hello bravo', 'default');
