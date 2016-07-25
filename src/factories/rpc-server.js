@@ -13,7 +13,8 @@ module.exports = function createRpcServerFactory(transport) {
 
         const {
             channelName = 'default',
-            handler
+            handler,
+            queueOptions = {}
         } = spec;
 
         assert.equal(typeof handler, 'function',
@@ -22,10 +23,6 @@ module.exports = function createRpcServerFactory(transport) {
         const channel = transport.channel(channelName);
         
         const queueName = exchangeName + '.query';
-        
-        const queueOptions = {
-            durable: true
-        };
         
         channel.addInit(() => {
             return Promise.resolve()
