@@ -16,7 +16,7 @@ module.exports = function(transport) {
         
         const channel = transport.channel(channelName);
         
-        transport.addInit(() => channel.assertExchange(exchangeName, 'topic'));
+        channel.addInit(() => channel.assertExchange(exchangeName, 'topic'));
 
         const produce = transport.producer({
             exchangeName,
@@ -53,7 +53,7 @@ module.exports = function(transport) {
         const channel = transport.channel(channelName);
         const queueName = exchangeName + '.' + helpers.generateId();
         
-        transport.addInit(() => {
+        channel.addInit(() => {
             return Promise.resolve()
                 .then(() => channel.assertQueue(queueName, queueOptions))
                 .then(() => channel.bindQueue(queueName, exchangeName, topic));

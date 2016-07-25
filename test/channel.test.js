@@ -21,13 +21,13 @@ describe('channel', () => {
     it('should allocate amqlib channel on connect', function() {
         const channel = transport.channel('default');
         expect(channel.getWrappedChannel).toThrow();
-        return transport.connect()
+        return transport.getReady()
             .then(() => expect(channel.getWrappedChannel).toNotThrow());
     });
 
     it('should close amqplib channel on close', function() {
         const channel = transport.channel('default');
-        return transport.connect()
+        return transport.getReady()
             .then(() => expect(transport.channels.default).toExist())
             .then(() => channel.close())
             .then(() => expect(transport.channels.default).toNotExist());
@@ -46,17 +46,14 @@ describe('channel', () => {
                 channelName: 'default'
             });
 
-            transport.addInit(() =>
+            channel.addInit(() =>
                 channel.assertExchange('channel.test', 'direct'));
 
-            transport.addInit(() =>
+            channel.addInit(() =>
                 channel.assertQueue('channel.test'));
 
-            transport.addInit(() =>
+            channel.addInit(() =>
                 channel.bindQueue('channel.test', 'channel.test', 'default'));
-
-            startConsumer('alpha', msg => alphaMsg = msg);
-            startConsumer('bravo', msg => bravoMsg = msg);
 
             function startConsumer(channelName, fn) {
                 transport.consumer({
@@ -69,7 +66,9 @@ describe('channel', () => {
                 });
             }
 
-            return transport.connect()
+            return transport.getReady()
+                .then(() => startConsumer('alpha', msg => alphaMsg = msg))
+                .then(() => startConsumer('bravo', msg => bravoMsg = msg))
                 .then(() => new Promise(resolve => {
                     client('hello alpha', 'default');
                     client('hello bravo', 'default');
@@ -98,6 +97,62 @@ describe('channel', () => {
             const bravo = transport.channel('bravo');
             expect(bravo.settings.prefetchCount).toBe(1);
             expect(bravo.settings.prefetchGlobal).toBe(false);
+        });
+
+    });
+
+    context('initializers', function() {
+
+        it('should be queued before connect and executed sequentially', function() {
+            const inits = [];
+            transport = createTransport({ url: rabbitUrl });
+            const channel = transport.channel('default');
+            channel.addInit(() => inits.push('a'));
+            channel.addInit(() => inits.push('b'));
+            channel.addInit(() => inits.push('c'));
+            return transport.getReady()
+                .then(() => {
+                    expect(inits.join('')).toBe('abc');
+                });
+        });
+
+        it('should queue after connect and executed inplace', function(done) {
+            const inits = [];
+            transport = createTransport({ url: rabbitUrl });
+            const channel = transport.channel('default');
+            transport.getReady()
+                .then(() => {
+                    channel.addInit(() => inits.push('a'));
+                    channel.addInit(() => inits.push('b'));
+                    channel.addInit(() => inits.push('c'));
+                    // initializers are async!
+                    expect(inits.join('')).toBe('');
+                    setTimeout(() => {
+                        expect(inits.join('')).toBe('abc');
+                        done();
+                    });
+                });
+        });
+
+        it('should mix before and after connect and still execute sequentially', function(done) {
+            const inits = [];
+            transport = createTransport({ url: rabbitUrl });
+            const channel = transport.channel('default');
+            channel.addInit(() => inits.push('a'));
+            channel.addInit(() => inits.push('b'));
+            channel.addInit(() => inits.push('c'));
+            transport.getReady()
+                .then(() => {
+                    channel.addInit(() => inits.push('d'));
+                    channel.addInit(() => inits.push('e'));
+                    channel.addInit(() => inits.push('f'));
+                    // pre-connect are now executed
+                    expect(inits.join('')).toBe('abc');
+                    setTimeout(() => {
+                        expect(inits.join('')).toBe('abcdef');
+                        done();
+                    });
+                });
         });
 
     });

@@ -13,7 +13,7 @@ describe('consumer', function() {
             url: rabbitUrl
         });
         const channel = transport.channel('custom');
-        transport.addInit(() => channel.assertQueue('consumer.test'));
+        channel.addInit(() => channel.assertQueue('consumer.test'));
     });
 
     afterEach(function() {
@@ -39,7 +39,7 @@ describe('consumer', function() {
             queueConsumed = true;
             return chan.getWrappedChannel().consume(...args);
         };
-        return transport.connect()
+        return transport.getReady()
             .then(() => {
                 expect(queueConsumed).toBe(true);
             });
@@ -54,7 +54,7 @@ describe('consumer', function() {
             },
             consume() {}
         });
-        return transport.connect()
+        return transport.getReady()
             .then(() => {
                 expect(consumer.consumerTag).toBe('some-tag');
             });
@@ -70,7 +70,7 @@ describe('consumer', function() {
                 consumed = true;
             }
         });
-        return transport.connect()
+        return transport.getReady()
             .then(() => consumer.cancel())
             .then(() => channel.sendToQueue('consumer.test', new Buffer('{}')))
             .then(() => new Promise(resolve => setTimeout(resolve, 200)))
@@ -87,7 +87,7 @@ describe('consumer', function() {
                 consumed = true;
             }
         });
-        return transport.connect()
+        return transport.getReady()
             .then(() => channel.sendToQueue('consumer.test', new Buffer('hi')))
             .then(() => new Promise(resolve => setTimeout(resolve, 200)))
             .then(() => expect(consumed).toBe(false));

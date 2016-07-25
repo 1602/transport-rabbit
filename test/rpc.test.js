@@ -36,7 +36,7 @@ describe('rpc', function() {
                 }
             });
 
-            return transport.connect();
+            return transport.getReady();
         });
 
         it('should work', function() {
@@ -82,7 +82,7 @@ describe('rpc', function() {
                 }
             });
 
-            return transport.connect();
+            return transport.getReady();
         });
 
         it('should requeue message', function() {

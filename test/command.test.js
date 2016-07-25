@@ -49,7 +49,7 @@ describe('command', function() {
                 }
             });
 
-            return transport.connect();
+            return transport.getReady();
         });
 
         it('can produce results asynchronously', function(done) {
@@ -89,7 +89,7 @@ describe('command', function() {
                 }
             });
 
-            return transport.connect();
+            return transport.getReady();
         });
 
         afterEach(function() {

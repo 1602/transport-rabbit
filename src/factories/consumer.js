@@ -34,7 +34,13 @@ function createConsumerFactory(transport) {
 
         const channel = transport.channel(channelName);
         
-        const destroy = transport.addInit(init);
+        channel.addInit(() => {
+            return Promise.resolve()
+                .then(() => channel.consume(queueName, handler, consumeOptions))
+                .then(res => consumerTag = res.consumerTag)
+                .then(() => debug('ready to consume "%s" via %s channel',
+                    queueName, channelName));
+        });
 
         return {
             get consumerTag() {
@@ -43,17 +49,8 @@ function createConsumerFactory(transport) {
             cancel
         };
         
-        function init() {
-            return Promise.resolve()
-                .then(() => channel.consume(queueName, handler, consumeOptions))
-                .then(res => consumerTag = res.consumerTag)
-                .then(() => debug('ready to consume "%s" via %s channel',
-                    queueName, channelName));
-        }
-
         function cancel() {
-            return channel.cancel(consumerTag)
-                .then(() => destroy());
+            return channel.cancel(consumerTag);
         }
 
         function handler(msg) {

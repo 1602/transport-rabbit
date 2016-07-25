@@ -27,7 +27,7 @@ module.exports = function createRpcServerFactory(transport) {
             durable: true
         };
         
-        transport.addInit(() => {
+        channel.addInit(() => {
             return Promise.resolve()
                 .then(() => channel.assertExchange(exchangeName, 'direct'))
                 .then(() => channel.assertQueue(queueName, queueOptions))

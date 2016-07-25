@@ -31,7 +31,7 @@ describe('pubsub', function() {
             consume: res => results2.push(res)
         });
 
-        return transport.connect()
+        return transport.getReady()
             .then(() => publish('message'))
             .then(() => new Promise(resolve => setTimeout(resolve, 300)))
             .then(() => {
@@ -62,7 +62,7 @@ describe('pubsub', function() {
             consume: res => all.push(res)
         });
 
-        return transport.connect()
+        return transport.getReady()
             .then(() => publish('hey', 'info'))
             .then(() => publish('hola', 'info'))
             .then(() => publish('oops', 'error'))
