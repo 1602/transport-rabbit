@@ -5,8 +5,6 @@ const assert = require('assert');
 
 const generateId = helpers.generateId;
 
-const DEFAULT_TIMEOUT = 60 * 1000;
-
 module.exports = function createRpcClientFactory(transport) {
 
     const awaitingResponseHandlers = Object.create(null);
@@ -21,7 +19,7 @@ module.exports = function createRpcClientFactory(transport) {
 
         const {
             channelName = 'default',
-            defaultTimeout = DEFAULT_TIMEOUT
+            defaultTimeout
         } = opts;
         
         const queueName = exchangeName + '.' + helpers.generateId();
@@ -68,7 +66,6 @@ module.exports = function createRpcClientFactory(transport) {
             producer(payload, 'query', {
                 correlationId: handler.correlationId,
                 replyTo: queueName,
-                expiration: timeout,
                 priority
             });
 
@@ -94,7 +91,7 @@ module.exports = function createRpcClientFactory(transport) {
         const correlationId = generateId();
         const deferred = Promise.defer();
         
-        const timer = setTimeout(() =>
+        const timer = timeout && setTimeout(() =>
             rejectHandler(correlationId, new Error('RPC request expired')), timeout);
 
         const responseHandler = {
