@@ -21,13 +21,13 @@ describe('channel', () => {
     it('should allocate amqlib channel on connect', function() {
         const channel = transport.channel('default');
         expect(channel.getWrappedChannel).toThrow();
-        return transport.connect()
+        return transport.getReady()
             .then(() => expect(channel.getWrappedChannel).toNotThrow());
     });
 
     it('should close amqplib channel on close', function() {
         const channel = transport.channel('default');
-        return transport.connect()
+        return transport.getReady()
             .then(() => expect(transport.channels.default).toExist())
             .then(() => channel.close())
             .then(() => expect(transport.channels.default).toNotExist());
@@ -46,13 +46,13 @@ describe('channel', () => {
                 channelName: 'default'
             });
 
-            channel.init(() =>
+            channel.addInit(() =>
                 channel.assertExchange('channel.test', 'direct'));
 
-            channel.init(() =>
+            channel.addInit(() =>
                 channel.assertQueue('channel.test'));
 
-            channel.init(() =>
+            channel.addInit(() =>
                 channel.bindQueue('channel.test', 'channel.test', 'default'));
 
             startConsumer('alpha', msg => alphaMsg = msg);
@@ -69,7 +69,7 @@ describe('channel', () => {
                 });
             }
 
-            return transport.connect()
+            return transport.getReady()
                 .then(() => new Promise(resolve => {
                     client('hello alpha', 'default');
                     client('hello bravo', 'default');
@@ -108,10 +108,10 @@ describe('channel', () => {
             const inits = [];
             transport = createTransport({ url: rabbitUrl });
             const channel = transport.channel('default');
-            channel.init(() => inits.push('a'));
-            channel.init(() => inits.push('b'));
-            channel.init(() => inits.push('c'));
-            return transport.connect()
+            channel.addInit(() => inits.push('a'));
+            channel.addInit(() => inits.push('b'));
+            channel.addInit(() => inits.push('c'));
+            return transport.getReady()
                 .then(() => {
                     expect(inits.join('')).toBe('abc');
                 });
@@ -121,11 +121,11 @@ describe('channel', () => {
             const inits = [];
             transport = createTransport({ url: rabbitUrl });
             const channel = transport.channel('default');
-            transport.connect()
+            transport.getReady()
                 .then(() => {
-                    channel.init(() => inits.push('a'));
-                    channel.init(() => inits.push('b'));
-                    channel.init(() => inits.push('c'));
+                    channel.addInit(() => inits.push('a'));
+                    channel.addInit(() => inits.push('b'));
+                    channel.addInit(() => inits.push('c'));
                     // initializers are async!
                     expect(inits.join('')).toBe('');
                     setTimeout(() => {
@@ -139,14 +139,14 @@ describe('channel', () => {
             const inits = [];
             transport = createTransport({ url: rabbitUrl });
             const channel = transport.channel('default');
-            channel.init(() => inits.push('a'));
-            channel.init(() => inits.push('b'));
-            channel.init(() => inits.push('c'));
-            transport.connect()
+            channel.addInit(() => inits.push('a'));
+            channel.addInit(() => inits.push('b'));
+            channel.addInit(() => inits.push('c'));
+            transport.getReady()
                 .then(() => {
-                    channel.init(() => inits.push('d'));
-                    channel.init(() => inits.push('e'));
-                    channel.init(() => inits.push('f'));
+                    channel.addInit(() => inits.push('d'));
+                    channel.addInit(() => inits.push('e'));
+                    channel.addInit(() => inits.push('f'));
                     // pre-connect are now executed
                     expect(inits.join('')).toBe('abc');
                     setTimeout(() => {

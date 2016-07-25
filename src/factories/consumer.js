@@ -34,7 +34,7 @@ function createConsumerFactory(transport) {
 
         const channel = transport.channel(channelName);
         
-        channel.init(() => {
+        channel.addInit(() => {
             return Promise.resolve()
                 .then(() => channel.consume(queueName, handler, consumeOptions))
                 .then(res => consumerTag = res.consumerTag)

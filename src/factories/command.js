@@ -29,7 +29,7 @@ module.exports = function createCommandFactory(transport) {
             exchangeName
         });
 
-        channel.init(() => {
+        channel.addInit(() => {
             return Promise.resolve()
                 .then(() => channel.assertExchange(exchangeName, 'direct'))
                 .then(() => channel.assertQueue(commandQueue, queueOptions))
@@ -63,7 +63,7 @@ module.exports = function createCommandFactory(transport) {
 
         const channel = transport.channel(channelName);
 
-        channel.init(() => {
+        channel.addInit(() => {
             return Promise.resolve()
                 .then(() => channel.assertExchange(exchangeName, 'direct'))
                 .then(() => channel.assertQueue(commandQueue, queueOptions))
@@ -71,7 +71,7 @@ module.exports = function createCommandFactory(transport) {
         });
         
         if (produceResults) {
-            channel.init(() => {
+            channel.addInit(() => {
                 return Promise.resolve()
                     .then(() => channel.assertQueue(resultQueue, queueOptions))
                     .then(() => channel.assertQueue(errorQueue, queueOptions))
@@ -135,7 +135,7 @@ module.exports = function createCommandFactory(transport) {
 
         const consumeOptions = { noAck: true };
 
-        channel.init(() => {
+        channel.addInit(() => {
             return Promise.resolve()
                 .then(() => channel.assertExchange(exchangeName, 'direct'))
                 .then(() => channel.assertQueue(resultQueue, queueOptions))

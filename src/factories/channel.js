@@ -57,17 +57,19 @@ module.exports = function createChannelFactory(transport) {
         const initializers = [];
         let currentInitializer = Promise.resolve(); // for sequential run
         let initialized = false;
-        
         let amqpChannel = null;
-        
-        transport.events.on('connected', onConnected);
+
+        const disconnect = transport.onConnected(onConnected);
 
         const channel = Object.assign(standardChannelInterface(), {
             getWrappedChannel,
             settings: effectiveSettings,
-            init,
+            addInit,
+            getReady,
             close
         });
+
+        addInit(() => openChannel());
 
         return channel;
 
@@ -92,28 +94,13 @@ module.exports = function createChannelFactory(transport) {
 
         function onConnected() {
             debug('init');
-            return Promise.resolve()
-                .then(() => transport.getConnection().createChannel())
-                .then(channel => amqpChannel = channel)
-                .then(() => channel.prefetch(
-                    effectiveSettings.prefetchCount,
-                    effectiveSettings.prefetchGlobal))
-                .then(() => runInitializers());
-        }
-        
-        function close() {
-            debug('close');
-            return Promise.resolve()
-                .then(() => transport.events.off('connected', onConnected))
-                .then(() => amqpChannel && amqpChannel.close())
-                .then(() => amqpChannel = null)
-                .then(() => delete transport.channels[channelName]);
+            return runInitializers()
+                .catch(err => onInitError(err));
         }
 
-        function init(fn) {
+        function addInit(fn) {
             if (initialized) {
-                runInitializer(fn)
-                    .catch(err => onInitError(err));
+                runInit(fn).catch(err => onInitError(err));
             }
             initializers.push(fn);
             return function removeInit() {
@@ -126,20 +113,43 @@ module.exports = function createChannelFactory(transport) {
 
         function runInitializers() {
             initialized = false;
-            // imperial loops! b/c we can!
-            initializers.forEach(fn => runInitializer(fn));
+            // imperial loops! please don't try to optimize these
+            // b/c their side-effects are crucial to our success
+            initializers.forEach(fn => runInit(fn));
             initialized = true;
-            return currentInitializer
-                .catch(err => onInitError(err));
+            return currentInitializer;
         }
 
-        function runInitializer(fn) {
+        function runInit(fn) {
             currentInitializer = currentInitializer.then(() => fn());
             return currentInitializer;
         }
 
         function onInitError(err) {
             console.error('Error during channel initialization', err);
+        }
+
+        function getReady() {
+            return currentInitializer;
+        }
+
+        function openChannel() {
+            return Promise.resolve()
+                .then(() => transport.getConnection().createChannel())
+                .then(channel => amqpChannel = channel)
+                .then(() => channel.prefetch(
+                    effectiveSettings.prefetchCount,
+                    effectiveSettings.prefetchGlobal));
+        }
+
+        function close() {
+            debug('close');
+            if (amqpChannel) {
+                amqpChannel.close();
+                amqpChannel = null;
+                disconnect();
+            }
+            delete transport.channels[channelName];
         }
 
     }

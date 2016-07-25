@@ -87,22 +87,6 @@ describe('transport', function() {
             }));
     });
 
-    it('should close connection when channel can not be opened', function(done) {
-        transport = createTransport({ url: rabbitUrl });
-        transport.connect()
-            .then(() => {
-                const conn = transport.getConnection();
-                sinon.stub(conn, 'createChannel', () => {
-                    return Promise.reject(new Error('Too many channels opened'));
-                });
-                sinon.stub(conn, 'close', () => {
-                    conn.close.restore();
-                    done();
-                });
-                transport.channel('default');
-            });
-    });
-
     it('connect should be idempotent', function() {
         transport = createTransport({ url: rabbitUrl });
         return Promise.resolve()

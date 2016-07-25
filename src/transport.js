@@ -44,15 +44,31 @@ module.exports = function createTransport(settings) {
         events,
         channels,
         settings,
+        getReady,
         connect,
         close,
         getConnection,
-        isConnected
+        isConnected,
+        onConnected
     };
     
     Object.assign(transport, createFactories(transport));
     
     return transport;
+
+    /**
+     * Connects transport and resolves once all channels are ready.
+     */
+    function getReady() {
+        return Promise.resolve()
+            .then(() => connect())
+            .then(() => {
+                const promises = Object.keys(channels)
+                    .map(k => channels[k])
+                    .map(ch => ch.getReady());
+                return Promise.all(promises);
+            });
+    }
 
     function connect() {
         if (isConnected()) {
@@ -102,6 +118,16 @@ module.exports = function createTransport(settings) {
 
     function isConnected() {
         return !!connection;
+    }
+
+    function onConnected(fn) {
+        if (isConnected()) {
+            fn();
+        }
+        transport.events.addListener('connected', fn);
+        return function disconnect() {
+            transport.events.removeListener('connected', fn);
+        };
     }
 
     function close() {

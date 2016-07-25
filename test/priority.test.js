@@ -13,11 +13,11 @@ describe('priority queues', function() {
             url: rabbitUrl
         });
         const channel = transport.channel('custom');
-        channel.init(() => channel.assertExchange('priority.test'));
-        channel.init(() => channel.assertQueue('priority.test', {
+        channel.addInit(() => channel.assertExchange('priority.test'));
+        channel.addInit(() => channel.assertQueue('priority.test', {
             maxPriority: 10
         }));
-        channel.init(() =>
+        channel.addInit(() =>
             channel.bindQueue('priority.test', 'priority.test', 'default'));
     });
 
@@ -53,7 +53,7 @@ describe('priority queues', function() {
             }
         });
 
-        return transport.connect()
+        return transport.getReady()
             .then(() => produce('irrelevant', 'default', { priority: 1 }))
             .then(() => produce('important', 'default', { priority: 10 }))
             .then(() => new Promise(resolve => setTimeout(resolve, 300)))
