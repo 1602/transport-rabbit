@@ -14,7 +14,8 @@ module.exports = function createRpcServerFactory(transport) {
         const {
             channelName = 'default',
             handler,
-            queueOptions = {}
+            queueOptions = {},
+            consumeOptions = {}
         } = spec;
 
         assert.equal(typeof handler, 'function',
@@ -39,7 +40,8 @@ module.exports = function createRpcServerFactory(transport) {
         return transport.consumer({
             channelName,
             queueName,
-            consume
+            consume,
+            consumeOptions
         });
         
         function consume(payload, job) {

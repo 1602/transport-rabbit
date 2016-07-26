@@ -4,23 +4,22 @@ const assert = require('assert');
 
 module.exports = function createCommandFactory(transport) {
     
-    const queueOptions = {
-        exclusive: false,
-        durable: true,
-        autoDelete: false
-    };
-
     return {
         createCommandSender,
         createCommandServer,
         createCommandResultRecipient
     };
 
-    function createCommandSender(exchangeName, channelName = 'default') {
+    function createCommandSender(exchangeName, opts) {
         assert.equal(typeof exchangeName, 'string',
             'Command sender requires exchangeName: String');
 
         const commandQueue = exchangeName + '.command';
+        
+        const {
+            channelName = 'default',
+            queueOptions = {}
+        } = (opts || {});
 
         const channel = transport.channel(channelName);
 
@@ -51,7 +50,9 @@ module.exports = function createCommandFactory(transport) {
         const {
             channelName = 'default',
             handler,
-            produceResults = true
+            produceResults = true,
+            queueOptions = {},
+            consumeOptions = {}
         } = spec;
 
         assert.equal(typeof handler, 'function',
@@ -73,8 +74,8 @@ module.exports = function createCommandFactory(transport) {
         if (produceResults) {
             channel.addInit(() => {
                 return Promise.resolve()
-                    .then(() => channel.assertQueue(resultQueue, queueOptions))
-                    .then(() => channel.assertQueue(errorQueue, queueOptions))
+                    .then(() => channel.assertQueue(resultQueue))
+                    .then(() => channel.assertQueue(errorQueue))
                     .then(() => channel.bindQueue(resultQueue, exchangeName, 'result'))
                     .then(() => channel.bindQueue(errorQueue, exchangeName, 'error'));
             });
@@ -107,7 +108,8 @@ module.exports = function createCommandFactory(transport) {
                             }, 'error', job);
                         }
                     });
-            }
+            },
+            consumeOptions
         });
         
         function produceResult(payload, type, job) {
@@ -125,7 +127,8 @@ module.exports = function createCommandFactory(transport) {
         const {
             result,
             error,
-            channelName = 'default'
+            channelName = 'default',
+            consumeOptions = { noAck: true }
         } = opts;
 
         const channel = transport.channel(channelName);
@@ -133,13 +136,11 @@ module.exports = function createCommandFactory(transport) {
         const resultQueue = exchangeName + '.result';
         const errorQueue = exchangeName + '.error';
 
-        const consumeOptions = { noAck: true };
-
         channel.addInit(() => {
             return Promise.resolve()
                 .then(() => channel.assertExchange(exchangeName, 'direct'))
-                .then(() => channel.assertQueue(resultQueue, queueOptions))
-                .then(() => channel.assertQueue(errorQueue, queueOptions))
+                .then(() => channel.assertQueue(resultQueue))
+                .then(() => channel.assertQueue(errorQueue))
                 .then(() => channel.bindQueue(resultQueue, exchangeName, 'result'))
                 .then(() => channel.bindQueue(errorQueue, exchangeName, 'error'));
         });

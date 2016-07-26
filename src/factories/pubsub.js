@@ -37,18 +37,14 @@ module.exports = function(transport) {
         const {
             consume,
             topic = '#',
-            channelName = 'default'
+            channelName = 'default',
+            consumeOptions = { noAck: true },
+            queueOptions = {
+                exclusive: true,
+                durable: false,
+                autoDelete: true
+            }
         } = spec;
-        
-        const queueOptions = {
-            exclusive: true,
-            durable: false,
-            autoDelete: true
-        };
-
-        const consumeOptions = {
-            noAck: true
-        };
         
         const channel = transport.channel(channelName);
         const queueName = exchangeName + '.' + helpers.generateId();

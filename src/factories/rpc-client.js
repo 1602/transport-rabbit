@@ -19,7 +19,8 @@ module.exports = function createRpcClientFactory(transport) {
 
         const {
             channelName = 'default',
-            defaultTimeout
+            defaultTimeout,
+            consumeOptions = { noAck: true }
         } = opts;
         
         const queueName = exchangeName + '.' + helpers.generateId();
@@ -35,10 +36,6 @@ module.exports = function createRpcClientFactory(transport) {
             durable: false,
             exclusive: true,
             autoDelete: true
-        };
-
-        const consumeOptions = {
-            noAck: true
         };
 
         channel.addInit(() => {
