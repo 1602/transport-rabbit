@@ -7,18 +7,18 @@ const amqplib = require('amqplib');
 
 const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.100:5672';
 
-describe('transport', function() {
+describe('transport', () => {
 
     let transport;
 
-    afterEach(function() {
+    afterEach(() => {
         if (transport) {
             return transport.close()
                 .then(() => transport = null);
         }
     });
 
-    it('should connect', function() {
+    it('should connect', () => {
         transport = createTransport({ url: rabbitUrl });
 
         expect(transport.isConnected()).toBe(false);
@@ -28,13 +28,13 @@ describe('transport', function() {
             });
     });
 
-    it('should emit "connected"', function(done) {
+    it('should emit "connected"', done => {
         transport = createTransport({ url: rabbitUrl });
         transport.connect();
         transport.events.once('connected', done);
     });
 
-    it('should reconnect in case of disconnect', function(done) {
+    it('should reconnect in case of disconnect', done => {
         transport = createTransport({
             url: rabbitUrl,
             reconnect: true,
@@ -47,7 +47,7 @@ describe('transport', function() {
             });
     });
 
-    it('should try to reconnect while server is not available', function(done) {
+    it('should try to reconnect while server is not available', done => {
         transport = createTransport({
             url: rabbitUrl,
             reconnect: true,
@@ -60,7 +60,7 @@ describe('transport', function() {
         transport.events.once('connected', done);
     });
 
-    it('should not try to reconnect if not configured', function(done) {
+    it('should not try to reconnect if not configured', done => {
         transport = createTransport({
             url: rabbitUrl,
             /* reconnect: false, default */
@@ -75,7 +75,7 @@ describe('transport', function() {
         setTimeout(done, 200);
     });
 
-    it('should quit gracefully on SIGINT and SIGTERM when configured', function() {
+    it('should quit gracefully on SIGINT and SIGTERM when configured', () => {
         transport = createTransport({
             url: rabbitUrl,
             quitGracefullyOnTerm: true
@@ -87,14 +87,14 @@ describe('transport', function() {
             }));
     });
 
-    it('connect should be idempotent', function() {
+    it('connect should be idempotent', () => {
         transport = createTransport({ url: rabbitUrl });
         return Promise.resolve()
             .then(() => transport.connect())
             .then(() => transport.connect());
     });
 
-    it('close should be idempotent', function() {
+    it('close should be idempotent', () => {
         transport = createTransport({ url: rabbitUrl });
         return Promise.resolve()
             .then(() => transport.connect())

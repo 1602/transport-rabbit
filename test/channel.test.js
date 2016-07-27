@@ -8,24 +8,24 @@ describe('channel', () => {
 
     let transport = null;
 
-    beforeEach(function() {
+    beforeEach(() => {
         transport = createTransport({
             url: rabbitUrl
         });
     });
 
-    afterEach(function() {
+    afterEach(() => {
         return transport.close();
     });
 
-    it('should allocate amqlib channel on connect', function() {
+    it('should allocate amqlib channel on connect', () => {
         const channel = transport.channel('default');
         expect(channel.getWrappedChannel).toThrow();
         return transport.getReady()
             .then(() => expect(channel.getWrappedChannel).toNotThrow());
     });
 
-    it('should close amqplib channel on close', function() {
+    it('should close amqplib channel on close', () => {
         const channel = transport.channel('default');
         return transport.getReady()
             .then(() => expect(transport.channels.default).toExist())
@@ -33,9 +33,9 @@ describe('channel', () => {
             .then(() => expect(transport.channels.default).toNotExist());
     });
 
-    context('multiple channels consumption', function() {
+    context('multiple channels consumption', () => {
 
-        it('should be possible to consume multiple channels', function() {
+        it('should be possible to consume multiple channels', () => {
             let alphaMsg = null;
             let bravoMsg = null;
 
@@ -82,9 +82,9 @@ describe('channel', () => {
 
     });
 
-    context('prefetch', function() {
+    context('prefetch', () => {
 
-        it('should be configurable per-channel', function() {
+        it('should be configurable per-channel', () => {
             const alpha = transport.channel('alpha', {
                 prefetchCount: 2,
                 prefetchGlobal: true
@@ -93,7 +93,7 @@ describe('channel', () => {
             expect(alpha.settings.prefetchGlobal).toBe(true);
         });
 
-        it('should default to count=1 global=false', function() {
+        it('should default to count=1 global=false', () => {
             const bravo = transport.channel('bravo');
             expect(bravo.settings.prefetchCount).toBe(1);
             expect(bravo.settings.prefetchGlobal).toBe(false);
@@ -101,9 +101,9 @@ describe('channel', () => {
 
     });
 
-    context('initializers', function() {
+    context('initializers', () => {
 
-        it('should be queued before connect and executed sequentially', function() {
+        it('should be queued before connect and executed sequentially', () => {
             const inits = [];
             transport = createTransport({ url: rabbitUrl });
             const channel = transport.channel('default');
@@ -116,7 +116,7 @@ describe('channel', () => {
                 });
         });
 
-        it('should queue after connect and executed inplace', function(done) {
+        it('should queue after connect and executed inplace', done => {
             const inits = [];
             transport = createTransport({ url: rabbitUrl });
             const channel = transport.channel('default');
@@ -134,7 +134,7 @@ describe('channel', () => {
                 });
         });
 
-        it('should mix before and after connect and still execute sequentially', function(done) {
+        it('should mix before and after connect and still execute sequentially', done => {
             const inits = [];
             transport = createTransport({ url: rabbitUrl });
             const channel = transport.channel('default');

@@ -4,19 +4,19 @@ const expect = require('expect');
 const createTransport = require('../');
 const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.101:5672';
 
-describe('command', function() {
-    
+describe('command', () => {
+
     let transport;
-    
-    beforeEach(function() {
+
+    beforeEach(() => {
         transport = createTransport({ url: rabbitUrl });
     });
-    
-    afterEach(function() {
+
+    afterEach(() => {
         return transport.close();
     });
 
-    context('normal flow', function() {
+    context('normal flow', () => {
 
         let client;
         let result1;
@@ -24,8 +24,8 @@ describe('command', function() {
         let result2;
         let context2;
 
-        beforeEach(function() {
-            
+        beforeEach(() => {
+
             client = transport.commandSender('command.test');
 
             transport.commandResultRecipient('command.test', {
@@ -52,7 +52,7 @@ describe('command', function() {
             return transport.getReady();
         });
 
-        it('can produce results asynchronously', function(done) {
+        it('can produce results asynchronously', done => {
             client(1, { context: { say: 'hello' } });
             setTimeout(() => {
                 expect(result1).toEqual('hola');
@@ -61,7 +61,7 @@ describe('command', function() {
             }, 300);
         });
 
-        it('can produce errors asynchronously', function(done) {
+        it('can produce errors asynchronously', done => {
             client(0);
             setTimeout(() => {
                 expect(result2.message).toEqual('Oops');
@@ -72,19 +72,19 @@ describe('command', function() {
 
     });
 
-    describe('ack', function() {
+    describe('ack', () => {
 
         let transport = null;
         let send;
         let handler;
 
-        beforeEach(function() {
+        beforeEach(() => {
             transport = createTransport({ url: rabbitUrl });
             send = transport.commandSender('command.test');
 
             transport.commandServer('command.test', {
                 produceResults: false,
-                handler: function() {
+                handler() {
                     return handler.apply(null, [].slice.call(arguments));
                 }
             });
@@ -92,11 +92,11 @@ describe('command', function() {
             return transport.getReady();
         });
 
-        afterEach(function() {
+        afterEach(() => {
             return transport.close();
         });
 
-        it('should allow to nack', function(done) {
+        it('should allow to nack', done => {
             let rejectedOnce = false;
             handler = (param, job) => {
                 expect(param).toBe('hello');

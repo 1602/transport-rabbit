@@ -4,11 +4,11 @@ const expect = require('expect');
 const createTransport = require('../');
 const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.101:5672';
 
-describe('priority queues', function() {
+describe('priority queues', () => {
 
     let transport = null;
 
-    beforeEach(function() {
+    beforeEach(() => {
         transport = createTransport({
             url: rabbitUrl
         });
@@ -21,16 +21,16 @@ describe('priority queues', function() {
             channel.bindQueue('priority.test', 'priority.test', 'default'));
     });
 
-    afterEach(function() {
+    afterEach(() => {
         const channel = transport.channel('custom');
         return channel.purgeQueue('priority.test');
     });
 
-    afterEach(function() {
+    afterEach(() => {
         return transport.close();
     });
 
-    it('prefer higher priority messages after nack', function() {
+    it('prefer higher priority messages after nack', () => {
 
         const messages = [];
 

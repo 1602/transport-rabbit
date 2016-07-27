@@ -5,19 +5,19 @@ const queueTransport = require('../');
 const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.101:5672';
 
 /* eslint max-nested-callbacks: [2, 6] */
-describe('pubsub', function() {
+describe('pubsub', () => {
 
     let transport;
 
-    beforeEach(function() {
+    beforeEach(() => {
         transport = queueTransport({ url: rabbitUrl });
     });
 
-    afterEach(function() {
+    afterEach(() => {
         return transport.close();
     });
 
-    it('should receive message to both queues', function() {
+    it('should receive message to both queues', () => {
         const publish = transport.publisher('pubsub.test');
 
         const results1 = [];
@@ -40,7 +40,7 @@ describe('pubsub', function() {
             });
     });
 
-    it('should work like router', function() {
+    it('should work like router', () => {
         const publish = transport.publisher('pubsub.test');
 
         const infos = [];

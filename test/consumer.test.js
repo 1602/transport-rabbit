@@ -4,11 +4,11 @@ const expect = require('expect');
 const createTransport = require('../');
 const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.101:5672';
 
-describe('consumer', function() {
+describe('consumer', () => {
 
     let transport = null;
 
-    beforeEach(function() {
+    beforeEach(() => {
         transport = createTransport({
             url: rabbitUrl
         });
@@ -16,16 +16,16 @@ describe('consumer', function() {
         channel.addInit(() => channel.assertQueue('consumer.test'));
     });
 
-    afterEach(function() {
+    afterEach(() => {
         const channel = transport.channel('custom');
         return channel.purgeQueue('consumer.test');
     });
 
-    afterEach(function() {
+    afterEach(() => {
         return transport.close();
     });
 
-    it('should consume queues', function() {
+    it('should consume queues', () => {
 
         transport.consumer({
             channelName: 'custom',
@@ -45,7 +45,7 @@ describe('consumer', function() {
             });
     });
 
-    it('should maintain consumer tags', function() {
+    it('should maintain consumer tags', () => {
         const consumer = transport.consumer({
             channelName: 'custom',
             queueName: 'consumer.test',
@@ -60,7 +60,7 @@ describe('consumer', function() {
             });
     });
 
-    it('should be cancellable', function() {
+    it('should be cancellable', () => {
         let consumed = false;
         const channel = transport.channel('custom');
         const consumer = transport.consumer({
@@ -77,7 +77,7 @@ describe('consumer', function() {
             .then(() => expect(consumed).toBe(false));
     });
 
-    it('should not consume malformed JSON messages', function() {
+    it('should not consume malformed JSON messages', () => {
         let consumed = false;
         const channel = transport.channel('custom');
         transport.consumer({
@@ -92,6 +92,6 @@ describe('consumer', function() {
             .then(() => new Promise(resolve => setTimeout(resolve, 200)))
             .then(() => expect(consumed).toBe(false));
     });
-    
+
 });
 

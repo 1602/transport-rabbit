@@ -7,25 +7,25 @@ const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.101:5672';
 
 /* eslint max-nested-callbacks: [2, 6] */
 
-describe('rpc', function() {
+describe('rpc', () => {
 
     let transport = null;
-    
-    beforeEach(function() {
+
+    beforeEach(() => {
         transport = createTransport({
             url: rabbitUrl
         });
     });
-    
-    afterEach(function() {
+
+    afterEach(() => {
         return transport.close();
     });
 
-    context('normal flow', function() {
+    context('normal flow', () => {
 
         let runFiboRpc = null;
 
-        beforeEach(function() {
+        beforeEach(() => {
 
             runFiboRpc = transport.rpcClient('rpc.test');
 
@@ -39,12 +39,12 @@ describe('rpc', function() {
             return transport.getReady();
         });
 
-        it('should work', function() {
+        it('should work', () => {
             return runFiboRpc({ n: 8 })
                 .then(res => expect(res).toEqual(21));
         });
 
-        it('should end by timeout', function() {
+        it('should end by timeout', () => {
             return runFiboRpc({ n: 500 }, {
                 timeout: 100
             })
@@ -53,7 +53,7 @@ describe('rpc', function() {
                 }, err => expect(err.message).toExist());
         });
 
-        it('should catch', function() {
+        it('should catch', () => {
             return runFiboRpc({ n: -1 })
                 .then(() => {
                     throw new Error('Unexpected success');
@@ -62,12 +62,12 @@ describe('rpc', function() {
 
     });
 
-    context('server sends nack', function() {
+    context('server sends nack', () => {
 
         let runFiboRpc = null;
         let requeued = false;
 
-        beforeEach(function() {
+        beforeEach(() => {
             runFiboRpc = transport.rpcClient('rpc.test');
 
             requeued = false;
@@ -85,7 +85,7 @@ describe('rpc', function() {
             return transport.getReady();
         });
 
-        it('should requeue message', function() {
+        it('should requeue message', () => {
             return runFiboRpc({ n: 8 })
                 .then(res => {
                     expect(requeued).toEqual(true);

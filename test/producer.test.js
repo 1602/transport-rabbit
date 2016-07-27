@@ -4,21 +4,21 @@ const expect = require('expect');
 const createTransport = require('../');
 const rabbitUrl = process.env.RABBIT_URL || 'amqp://192.168.99.101:5672';
 
-describe('producer', function() {
+describe('producer', () => {
 
     let transport = null;
 
-    beforeEach(function() {
+    beforeEach(() => {
         transport = createTransport({
             url: rabbitUrl
         });
     });
 
-    afterEach(function() {
+    afterEach(() => {
         transport.close();
     });
 
-    it('should throw when called too early', function() {
+    it('should throw when called too early', () => {
         const produce = transport.producer({
             exchangeName: 'log'
         });
