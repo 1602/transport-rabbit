@@ -13,9 +13,9 @@ module.exports = function(transport) {
     function createPublisher(exchangeName, channelName = 'default') {
         assert.equal(typeof exchangeName, 'string',
             'Publisher requires exchangeName: String');
-        
+
         const channel = transport.channel(channelName);
-        
+
         channel.addInit(() => channel.assertExchange(exchangeName, 'topic'));
 
         const produce = transport.producer({
@@ -33,7 +33,7 @@ module.exports = function(transport) {
             'Subscriber requires exchangeName: String');
         assert.equal(typeof spec, 'object',
             'Subscriber requires spec: Object');
-        
+
         const {
             consume,
             topic = '#',
@@ -45,16 +45,16 @@ module.exports = function(transport) {
                 autoDelete: true
             }
         } = spec;
-        
+
         const channel = transport.channel(channelName);
         const queueName = exchangeName + '.' + helpers.generateId();
-        
+
         channel.addInit(() => {
             return Promise.resolve()
                 .then(() => channel.assertQueue(queueName, queueOptions))
                 .then(() => channel.bindQueue(queueName, exchangeName, topic));
         });
-        
+
         return transport.consumer({
             queueName,
             consume,

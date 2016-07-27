@@ -23,7 +23,7 @@ module.exports = function createProducerFactory(transport) {
 
         return function publish(payload, route, opts) {
             opts = opts || {};
-            
+
             const context = opts.context;
 
             debug('publish to exchange "%s" via route "%s"', exchangeName, route);
@@ -33,7 +33,7 @@ module.exports = function createProducerFactory(transport) {
             return Promise.resolve()
                 .then(() => channel.publish(exchangeName, route, buffer, opts));
         };
-        
+
     };
 
 };

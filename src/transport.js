@@ -39,7 +39,7 @@ module.exports = function createTransport(settings) {
     const channels = {};
 
     let connection = null;
-    
+
     const transport = {
         events,
         channels,
@@ -51,9 +51,9 @@ module.exports = function createTransport(settings) {
         isConnected,
         onConnected
     };
-    
+
     Object.assign(transport, createFactories(transport));
-    
+
     return transport;
 
     /**
@@ -110,7 +110,7 @@ module.exports = function createTransport(settings) {
                 throw err;
             });
     }
-    
+
     function getConnection() {
         assert(connection, 'RabbitMQ not connected');
         return connection;

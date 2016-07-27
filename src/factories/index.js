@@ -12,7 +12,7 @@ module.exports = function createFactories(transport) {
 
     const pubsubFactory = createPubsubFactory(transport);
     const commandFactory = createCommandFactory(transport);
-    
+
     return {
         channel: createChannelFactory(transport),
 
@@ -29,5 +29,5 @@ module.exports = function createFactories(transport) {
         commandServer: commandFactory.createCommandServer,
         commandResultRecipient: commandFactory.createCommandResultRecipient
     };
-    
+
 };

@@ -20,11 +20,11 @@ module.exports = function createRpcServerFactory(transport) {
 
         assert.equal(typeof handler, 'function',
             'RPC server requires handler: Function/2');
-        
+
         const channel = transport.channel(channelName);
-        
+
         const queueName = exchangeName + '.query';
-        
+
         channel.addInit(() => {
             return Promise.resolve()
                 .then(() => channel.assertExchange(exchangeName, 'direct'))
@@ -36,14 +36,14 @@ module.exports = function createRpcServerFactory(transport) {
             channelName,
             exchangeName
         });
-        
+
         return transport.consumer({
             channelName,
             queueName,
             consume,
             consumeOptions
         });
-        
+
         function consume(payload, job) {
             const {
                 correlationId,

@@ -55,7 +55,8 @@ module.exports = function createChannelFactory(transport) {
         const effectiveSettings = Object.assign({}, DEFAULT_SETTINGS, settings);
 
         const initializers = [];
-        let currentInitializer = Promise.resolve(); // for sequential run
+        // for sequential run
+        let currentInitializer = Promise.resolve();
         let initialized = false;
         let amqpChannel = null;
 

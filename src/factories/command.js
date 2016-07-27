@@ -3,7 +3,7 @@
 const assert = require('assert');
 
 module.exports = function createCommandFactory(transport) {
-    
+
     return {
         createCommandSender,
         createCommandServer,
@@ -15,7 +15,7 @@ module.exports = function createCommandFactory(transport) {
             'Command sender requires exchangeName: String');
 
         const commandQueue = exchangeName + '.command';
-        
+
         const {
             channelName = 'default',
             queueOptions = {}
@@ -70,7 +70,7 @@ module.exports = function createCommandFactory(transport) {
                 .then(() => channel.assertQueue(commandQueue, queueOptions))
                 .then(() => channel.bindQueue(commandQueue, exchangeName, 'command'));
         });
-        
+
         if (produceResults) {
             channel.addInit(() => {
                 return Promise.resolve()
@@ -111,7 +111,7 @@ module.exports = function createCommandFactory(transport) {
             },
             consumeOptions
         });
-        
+
         function produceResult(payload, type, job) {
             if (!produceResults) {
                 return;
@@ -144,7 +144,7 @@ module.exports = function createCommandFactory(transport) {
                 .then(() => channel.bindQueue(resultQueue, exchangeName, 'result'))
                 .then(() => channel.bindQueue(errorQueue, exchangeName, 'error'));
         });
-        
+
         const resultConsumer = transport.consumer({
             channelName,
             queueName: resultQueue,
@@ -158,7 +158,7 @@ module.exports = function createCommandFactory(transport) {
             consume: error,
             consumeOptions
         });
-        
+
         return {
             resultConsumer,
             errorConsumer

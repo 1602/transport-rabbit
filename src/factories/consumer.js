@@ -15,7 +15,7 @@ function createConsumerFactory(transport) {
      * @param spec.channelName {String} (default) name of channel
      */
     return function createConsumer(spec) {
-        assert.equal(typeof spec, 'object', 
+        assert.equal(typeof spec, 'object',
             'Consumer requires spec: Object');
 
         let consumerTag = null;
@@ -26,14 +26,14 @@ function createConsumerFactory(transport) {
             consumeOptions = {},
             channelName = 'default',
         } = spec;
-        
+
         assert(queueName, 'Consumer requires queueName: String');
 
         assert.equal(typeof consume, 'function',
             'Consumer requires consume: Function/2');
 
         const channel = transport.channel(channelName);
-        
+
         channel.addInit(() => {
             return Promise.resolve()
                 .then(() => channel.consume(queueName, handler, consumeOptions))
@@ -48,7 +48,7 @@ function createConsumerFactory(transport) {
             },
             cancel
         };
-        
+
         function cancel() {
             return channel.cancel(consumerTag);
         }
