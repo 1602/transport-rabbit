@@ -7,6 +7,7 @@
     "node": ">=6.2"
   },
   "scripts": {
+    "lint": "eslint test/ src/",
     "start-test-rabbit": "docker run -d -p 5673:5672 -p 15673:15672 --name test-rabbit-server --hostname test-rabbit-server rabbitmq:3.6-management",
     "test": "mocha --no-exit --reporter spec --bail --check-leaks test/",
     "test-ci": "istanbul cover node_modules/mocha/bin/_mocha --report lcovonly -- --reporter spec --check-leaks test/",
