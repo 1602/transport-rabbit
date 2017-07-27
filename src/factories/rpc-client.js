@@ -1,5 +1,6 @@
 'use strict';
 
+const defer = require('promise-defer');
 const helpers = require('../helpers');
 const assert = require('assert');
 
@@ -86,7 +87,7 @@ module.exports = function createRpcClientFactory(transport) {
 
     function addResponseHandler(timeout) {
         const correlationId = generateId();
-        const deferred = Promise.defer();
+        const deferred = defer();
 
         const timer = timeout && setTimeout(() =>
             rejectHandler(correlationId, new Error('RPC request expired')), timeout);

@@ -1,6 +1,6 @@
 {
   "name": "transport-rabbit",
-  "version": "0.8.4",
+  "version": "0.9.0",
   "description": "Transport layer domain for rabbit",
   "main": "index.js",
   "engines": {
@@ -18,7 +18,8 @@
   "license": "MIT",
   "dependencies": {
     "amqplib": "=0.4.1",
-    "debug": "^2.2.0"
+    "debug": "^2.2.0",
+    "promise-defer": "1.0.x"
   },
   "repository": "git@github.com:1602/transport-rabbit.git",
   "devDependencies": {
